@@ -1,6 +1,6 @@
 {
   "name": "Gym Locker Admin Dashboard",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "slug": "gym_locker_dashboard",
   "description": "Manage gym lockers with MQTT integration.",
   "startup": "services",
