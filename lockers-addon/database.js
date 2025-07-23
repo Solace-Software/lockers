@@ -1,49 +1,32 @@
-const { Pool } = require('pg');
+const mysql = require('mysql2/promise');
 
 class Database {
   constructor() {
-    this.pool = new Pool({
-      host: process.env.DB_HOST || 'a0d7b954-postgresql',
-      port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : 5432,
-      database: process.env.DB_NAME || 'gym_lockers',
+    this.pool = mysql.createPool({
+      host: process.env.DB_HOST || 'core-mariadb',
+      port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : 3306,
       user: process.env.DB_USER || 'your_user',
       password: process.env.DB_PASSWORD || 'your_password',
-      max: 20,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 2000,
+      database: process.env.DB_NAME || 'gym_lockers',
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0
     });
     this.isConnected = false;
   }
 
   async connect() {
     try {
-      // Try to get the current user for database connection
-      const os = require('os');
-      const defaultUser = os.userInfo().username;
-      
-      this.pool = new Pool({
-        host: process.env.DB_HOST || 'localhost',
-        port: process.env.DB_PORT || 5432,
-        database: process.env.DB_NAME || 'gym_lockers',
-        user: process.env.DB_USER || defaultUser,
-        password: process.env.DB_PASSWORD || '',
-        max: 20,
-        idleTimeoutMillis: 30000,
-        connectionTimeoutMillis: 2000,
-      });
-
       // Test connection
-      await this.pool.query('SELECT NOW()');
+      const conn = await this.pool.getConnection();
+      await conn.query('SELECT 1');
+      conn.release();
       this.isConnected = true;
-      console.log('✅ Database connected successfully');
-      
+      console.log('\u2705 Database connected successfully');
       // Initialize schema
       await this.initializeSchema();
-      
     } catch (error) {
-      console.error('❌ Database connection failed:', error.message);
-      console.log('💡 Please ensure PostgreSQL is installed and running');
-      console.log('💡 You may need to create the database first: createdb gym_lockers');
+      console.error('\u274c Database connection failed:', error.message);
       throw error;
     }
   }
@@ -52,7 +35,7 @@ class Database {
     if (this.pool) {
       await this.pool.end();
       this.isConnected = false;
-      console.log('✅ Database disconnected');
+      console.log('\u2705 Database disconnected');
     }
   }
 
@@ -61,30 +44,28 @@ class Database {
   }
 
   async initializeSchema() {
-    const client = await this.pool.connect();
+    const conn = await this.pool.getConnection();
     try {
-      await client.query('BEGIN');
-      
-      await this.createUsersTable(client);
-      await this.createLockersTable(client);
-      await this.createGroupsTable(client);
-      await this.createGroupLockersTable(client);
-      await this.createSettingsTable(client);
-      await this.createLogsTable(client);
-      await this.createMqttMessagesTable(client);
-      
-      await client.query('COMMIT');
-      console.log('✅ Database schema initialized');
+      await conn.beginTransaction();
+      await this.createUsersTable(conn);
+      await this.createLockersTable(conn);
+      await this.createGroupsTable(conn);
+      await this.createGroupLockersTable(conn);
+      await this.createSettingsTable(conn);
+      await this.createLogsTable(conn);
+      await this.createMqttMessagesTable(conn);
+      await conn.commit();
+      console.log('\u2705 Database schema initialized');
     } catch (error) {
-      await client.query('ROLLBACK');
-      console.error('❌ Schema initialization failed:', error);
+      await conn.rollback();
+      console.error('\u274c Schema initialization failed:', error);
       throw error;
     } finally {
-      client.release();
+      conn.release();
     }
   }
 
-  async createUsersTable(client) {
+  async createUsersTable(conn) {
     // First create the table if it doesn't exist
     const createTableQuery = `
       CREATE TABLE IF NOT EXISTS users (
@@ -102,7 +83,7 @@ class Database {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `;
-    await client.query(createTableQuery);
+    await conn.query(createTableQuery);
 
     // Add missing columns if they don't exist
     const addColumnsQuery = `
@@ -126,7 +107,7 @@ class Database {
         END IF;
       END $$;
     `;
-    await client.query(addColumnsQuery);
+    await conn.query(addColumnsQuery);
 
     // Add unique constraint on rfid_tag if it doesn't exist
     const addUniqueConstraintQuery = `
@@ -140,7 +121,7 @@ class Database {
         END IF;
       END $$;
     `;
-    await client.query(addUniqueConstraintQuery);
+    await conn.query(addUniqueConstraintQuery);
 
     // Drop NOT NULL constraints if they exist
     const dropConstraintsQuery = `
@@ -167,7 +148,7 @@ class Database {
         END IF;
       END $$;
     `;
-    await client.query(dropConstraintsQuery);
+    await conn.query(dropConstraintsQuery);
 
     // Create indexes if they don't exist
     const createIndexesQuery = `
@@ -176,10 +157,10 @@ class Database {
       CREATE INDEX IF NOT EXISTS idx_users_gym_id ON users(gym_id);
       CREATE INDEX IF NOT EXISTS idx_users_rfid_tag ON users(rfid_tag);
     `;
-    await client.query(createIndexesQuery);
+    await conn.query(createIndexesQuery);
   }
 
-  async createLockersTable(client) {
+  async createLockersTable(conn) {
     const query = `
       CREATE TABLE IF NOT EXISTS lockers (
         id SERIAL PRIMARY KEY,
@@ -205,10 +186,10 @@ class Database {
       CREATE INDEX IF NOT EXISTS idx_lockers_locker_id ON lockers(locker_id);
       CREATE INDEX IF NOT EXISTS idx_lockers_status ON lockers(status);
     `;
-    await client.query(query);
+    await conn.query(query);
   }
 
-  async createGroupsTable(client) {
+  async createGroupsTable(conn) {
     const query = `
       CREATE TABLE IF NOT EXISTS locker_groups (
         id SERIAL PRIMARY KEY,
@@ -219,10 +200,10 @@ class Database {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `;
-    await client.query(query);
+    await conn.query(query);
   }
 
-  async createGroupLockersTable(client) {
+  async createGroupLockersTable(conn) {
     const query = `
       CREATE TABLE IF NOT EXISTS group_lockers (
         id SERIAL PRIMARY KEY,
@@ -232,10 +213,10 @@ class Database {
         UNIQUE(group_id, locker_id)
       );
     `;
-    await client.query(query);
+    await conn.query(query);
   }
 
-  async createSettingsTable(client) {
+  async createSettingsTable(conn) {
     const query = `
       CREATE TABLE IF NOT EXISTS settings (
         id SERIAL PRIMARY KEY,
@@ -246,10 +227,10 @@ class Database {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `;
-    await client.query(query);
+    await conn.query(query);
   }
 
-  async createLogsTable(client) {
+  async createLogsTable(conn) {
     const query = `
       CREATE TABLE IF NOT EXISTS activity_logs (
         id SERIAL PRIMARY KEY,
@@ -265,10 +246,10 @@ class Database {
       CREATE INDEX IF NOT EXISTS idx_logs_action ON activity_logs(action);
       CREATE INDEX IF NOT EXISTS idx_logs_created ON activity_logs(created_at);
     `;
-    await client.query(query);
+    await conn.query(query);
   }
 
-  async createMqttMessagesTable(client) {
+  async createMqttMessagesTable(conn) {
     const query = `
       CREATE TABLE IF NOT EXISTS mqtt_messages (
         id SERIAL PRIMARY KEY,
@@ -284,30 +265,30 @@ class Database {
       CREATE INDEX IF NOT EXISTS idx_mqtt_topic ON mqtt_messages(topic);
       CREATE INDEX IF NOT EXISTS idx_mqtt_created ON mqtt_messages(created_at);
     `;
-    await client.query(query);
+    await conn.query(query);
   }
 
   async query(sql, params = []) {
-    const client = await this.pool.connect();
+    const conn = await this.pool.getConnection();
     try {
-      const result = await client.query(sql, params);
+      const result = await conn.query(sql, params);
       return result;
     } finally {
-      client.release();
+      conn.release();
     }
   }
 
   async transaction(callback) {
-    const client = await this.pool.connect();
+    const conn = await this.pool.getConnection();
     try {
-      await client.query('BEGIN');
-      const result = await callback(client);
-      await client.query('COMMIT');
+      await conn.query('BEGIN');
+      const result = await callback(conn);
+      await conn.query('COMMIT');
       return result;
     } catch (error) {
       console.error('❌ Transaction error:', error);
       try {
-      await client.query('ROLLBACK');
+      await conn.query('ROLLBACK');
         console.log('✅ Transaction rolled back');
       } catch (rollbackError) {
         console.error('❌ Error rolling back transaction:', rollbackError);
@@ -315,7 +296,7 @@ class Database {
       throw error;
     } finally {
       try {
-      client.release();
+      conn.release();
         console.log('✅ Client released');
       } catch (releaseError) {
         console.error('❌ Error releasing client:', releaseError);
@@ -341,7 +322,7 @@ class Database {
     
     const query = `
       INSERT INTO users (username, email, password_hash, role, first_name, last_name, gym_id, phone, rfid_tag, locker_id, valid_until)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       RETURNING *
     `;
     const result = await this.query(query, [
@@ -367,12 +348,12 @@ class Database {
   }
 
   async updateUser(id, userData) {
-    const fields = Object.keys(userData).map((key, index) => `${key} = $${index + 2}`).join(', ');
+    const fields = Object.keys(userData).map((key, index) => `${key} = ?`).join(', ');
     const values = Object.values(userData);
     const query = `
       UPDATE users 
       SET ${fields}, updated_at = CURRENT_TIMESTAMP 
-      WHERE id = $1 
+      WHERE id = ? 
       RETURNING *
     `;
     const result = await this.query(query, [id, ...values]);
@@ -380,13 +361,13 @@ class Database {
   }
 
   async deleteUser(id) {
-    const query = 'DELETE FROM users WHERE id = $1 RETURNING *';
+    const query = 'DELETE FROM users WHERE id = ? RETURNING *';
     const result = await this.query(query, [id]);
     return result.rows[0];
   }
 
   async getUserById(id) {
-    const query = 'SELECT * FROM users WHERE id = $1';
+    const query = 'SELECT * FROM users WHERE id = ?';
     const result = await this.query(query, [id]);
     return result.rows[0];
   }
@@ -399,7 +380,7 @@ class Database {
         l.locker_id as locker_identifier
       FROM activity_logs al
       LEFT JOIN lockers l ON al.locker_id = l.id
-      WHERE al.user_id = $1
+      WHERE al.user_id = ?
       ORDER BY al.created_at DESC
       LIMIT 100
     `;
@@ -408,17 +389,17 @@ class Database {
   }
 
   async getUserByRfidTag(rfidTag) {
-    const query = 'SELECT * FROM users WHERE rfid_tag = $1';
+    const query = 'SELECT * FROM users WHERE rfid_tag = ?';
     const result = await this.query(query, [rfidTag]);
     return result.rows[0];
   }
 
   async isRfidTagAvailable(rfidTag, excludeUserId = null) {
-    let query = 'SELECT id FROM users WHERE rfid_tag = $1';
+    let query = 'SELECT id FROM users WHERE rfid_tag = ?';
     const params = [rfidTag];
     
     if (excludeUserId) {
-      query += ' AND id != $2';
+      query += ' AND id != ?';
       params.push(excludeUserId);
     }
     
@@ -431,7 +412,7 @@ class Database {
     const { locker_id, name, location, status = 'available', ip_address, topic, num_locks = 1, api_token, controller_type, metadata = {} } = lockerData;
     const query = `
       INSERT INTO lockers (locker_id, name, location, status, ip_address, topic, num_locks, api_token, controller_type, metadata)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       RETURNING *
     `;
     const result = await this.query(query, [locker_id, name, location, status, ip_address, topic, num_locks, api_token, controller_type, JSON.stringify(metadata)]);
@@ -445,24 +426,24 @@ class Database {
   }
 
   async getLockerByLockerId(lockerId) {
-    const query = 'SELECT * FROM lockers WHERE locker_id = $1';
+    const query = 'SELECT * FROM lockers WHERE locker_id = ?';
     const result = await this.query(query, [lockerId]);
     return result.rows[0];
   }
 
   async getLockerById(id) {
-    const query = 'SELECT * FROM lockers WHERE id = $1';
+    const query = 'SELECT * FROM lockers WHERE id = ?';
     const result = await this.query(query, [id]);
     return result.rows[0];
   }
 
   async updateLocker(id, lockerData) {
-    const fields = Object.keys(lockerData).map((key, index) => `${key} = $${index + 2}`).join(', ');
+    const fields = Object.keys(lockerData).map((key, index) => `${key} = ?`).join(', ');
     const values = Object.values(lockerData);
     const query = `
       UPDATE lockers 
       SET ${fields}, updated_at = CURRENT_TIMESTAMP 
-      WHERE id = $1 
+      WHERE id = ? 
       RETURNING *
     `;
     const result = await this.query(query, [id, ...values]);
@@ -472,8 +453,8 @@ class Database {
   async updateLockerHeartbeat(lockerId, heartbeatData) {
     const query = `
       UPDATE lockers 
-      SET uptime = $2, ip_address = $3, last_heartbeat = CURRENT_TIMESTAMP, is_online = true, updated_at = CURRENT_TIMESTAMP 
-      WHERE locker_id = $1 
+      SET uptime = ?, ip_address = ?, last_heartbeat = CURRENT_TIMESTAMP, is_online = true, updated_at = CURRENT_TIMESTAMP 
+      WHERE locker_id = ? 
       RETURNING *
     `;
     const result = await this.query(query, [lockerId, heartbeatData.uptime, heartbeatData.ip_address]);
@@ -481,7 +462,7 @@ class Database {
   }
 
   async deleteLocker(id) {
-    const query = 'DELETE FROM lockers WHERE id = $1 RETURNING *';
+    const query = 'DELETE FROM lockers WHERE id = ? RETURNING *';
     const result = await this.query(query, [id]);
     return result.rows[0];
   }
@@ -492,7 +473,7 @@ class Database {
       SELECT lg.* 
       FROM locker_groups lg
       JOIN group_lockers gl ON lg.id = gl.group_id
-      WHERE gl.locker_id = $1
+      WHERE gl.locker_id = ?
     `;
     const result = await this.query(query, [lockerId]);
     return result.rows[0] || null;
@@ -502,23 +483,23 @@ class Database {
   async createGroup(groupData) {
     const { name, description, color = '#3B82F6', locker_ids = [] } = groupData;
     
-    return await this.transaction(async (client) => {
+    return await this.transaction(async (conn) => {
       // Create the group
       const groupQuery = `
         INSERT INTO locker_groups (name, description, color)
-        VALUES ($1, $2, $3)
+        VALUES (?, ?, ?)
         RETURNING *
       `;
-      const groupResult = await client.query(groupQuery, [name, description, color]);
+      const groupResult = await conn.query(groupQuery, [name, description, color]);
       const group = groupResult.rows[0];
       
       // Add lockers to the group if provided
       if (locker_ids.length > 0) {
         const lockerQuery = `
           INSERT INTO group_lockers (group_id, locker_id)
-          VALUES ${locker_ids.map((_, i) => `($1, $${i + 2})`).join(', ')}
+          VALUES ${locker_ids.map((_, i) => `(?, ?)`).join(', ')}
         `;
-        await client.query(lockerQuery, [group.id, ...locker_ids]);
+        await conn.query(lockerQuery, [group.id, ...locker_ids]);
       }
       
       // Return group with locker_ids
@@ -553,7 +534,7 @@ class Database {
         ) as locker_ids
       FROM locker_groups lg
       LEFT JOIN group_lockers gl ON lg.id = gl.group_id
-      WHERE lg.id = $1
+      WHERE lg.id = ?
       GROUP BY lg.id
     `;
     const result = await this.query(query, [id]);
@@ -563,46 +544,46 @@ class Database {
   async updateGroup(id, groupData) {
     const { name, description, color, locker_ids } = groupData;
     
-    return await this.transaction(async (client) => {
+    return await this.transaction(async (conn) => {
       // Update group info
       const fields = [];
       const values = [id];
       let paramIndex = 2;
       
       if (name !== undefined) {
-        fields.push(`name = $${paramIndex++}`);
+        fields.push(`name = ?`);
         values.push(name);
       }
       if (description !== undefined) {
-        fields.push(`description = $${paramIndex++}`);
+        fields.push(`description = ?`);
         values.push(description);
       }
       if (color !== undefined) {
-        fields.push(`color = $${paramIndex++}`);
+        fields.push(`color = ?`);
         values.push(color);
       }
       
       const updateQuery = `
         UPDATE locker_groups 
         SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP 
-        WHERE id = $1 
+        WHERE id = ? 
         RETURNING *
       `;
-      const groupResult = await client.query(updateQuery, values);
+      const groupResult = await conn.query(updateQuery, values);
       const group = groupResult.rows[0];
       
       // Update locker associations if provided
       if (locker_ids !== undefined) {
         // Remove existing associations
-        await client.query('DELETE FROM group_lockers WHERE group_id = $1', [id]);
+        await conn.query('DELETE FROM group_lockers WHERE group_id = ?', [id]);
         
         // Add new associations
         if (locker_ids.length > 0) {
           const lockerQuery = `
             INSERT INTO group_lockers (group_id, locker_id)
-            VALUES ${locker_ids.map((_, i) => `($1, $${i + 2})`).join(', ')}
+            VALUES ${locker_ids.map((_, i) => `(?, ?)`).join(', ')}
           `;
-          await client.query(lockerQuery, [id, ...locker_ids]);
+          await conn.query(lockerQuery, [id, ...locker_ids]);
         }
       }
       
@@ -611,7 +592,7 @@ class Database {
   }
 
   async deleteGroup(id) {
-    const query = 'DELETE FROM locker_groups WHERE id = $1 RETURNING *';
+    const query = 'DELETE FROM locker_groups WHERE id = ? RETURNING *';
     const result = await this.query(query, [id]);
     return result.rows[0];
   }
@@ -626,7 +607,7 @@ class Database {
   async setSetting(key, value, description = null) {
     const query = `
       INSERT INTO settings (key, value, description)
-      VALUES ($1, $2, $3)
+      VALUES (?, ?, ?)
       ON CONFLICT (key) DO UPDATE SET
         value = EXCLUDED.value,
         description = EXCLUDED.description,
@@ -638,7 +619,7 @@ class Database {
   }
 
   async getSetting(key) {
-    const query = 'SELECT * FROM settings WHERE key = $1';
+    const query = 'SELECT * FROM settings WHERE key = ?';
     const result = await this.query(query, [key]);
     return result.rows[0];
   }
@@ -664,7 +645,7 @@ class Database {
     
     const query = `
       INSERT INTO activity_logs (user_id, locker_id, action, details, ip_address, user_agent)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      VALUES (?, ?, ?, ?, ?, ?)
       RETURNING *
     `;
     const result = await this.query(query, [cleanUserId, locker_id, action, JSON.stringify(details), ip_address, user_agent]);
@@ -676,7 +657,7 @@ class Database {
     const { topic, payload, qos = 0, retain = false, locker_id } = messageData;
     const query = `
       INSERT INTO mqtt_messages (topic, payload, qos, retain, locker_id)
-      VALUES ($1, $2, $3, $4, $5)
+      VALUES (?, ?, ?, ?, ?)
       RETURNING *
     `;
     const result = await this.query(query, [topic, JSON.stringify(payload), qos, retain, locker_id]);

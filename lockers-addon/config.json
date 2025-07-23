@@ -2,7 +2,7 @@
   "name": "Gym Locker Admin Dashboard",
   "version": "1.0.1",
   "slug": "gym_locker_dashboard",
-  "description": "Manage gym lockers with MQTT integration.",
+  "description": "Manage gym lockers with MQTT integration. Uses MariaDB for storage.",
   "startup": "services",
   "boot": "auto",
   "webui": "http://[HOST]:[PORT:3001]",
@@ -13,8 +13,8 @@
   "panel_icon": "mdi:lock",
   "arch": ["amd64", "armv7", "aarch64"],
   "options": {
-    "db_host": "a0d7b954-postgresql",
-    "db_port": 5432,
+    "db_host": "core-mariadb",
+    "db_port": 3306,
     "db_user": "your_user",
     "db_password": "your_password",
     "db_name": "gym_lockers"
