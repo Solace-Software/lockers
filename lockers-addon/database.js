@@ -3,7 +3,14 @@ const { Pool } = require('pg');
 class Database {
   constructor() {
     this.pool = new Pool({
-      connectionString: process.env.DATABASE_URL || 'postgresql://localhost:5432/gym_lockers'
+      host: process.env.DB_HOST || 'a0d7b954-postgresql',
+      port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : 5432,
+      database: process.env.DB_NAME || 'gym_lockers',
+      user: process.env.DB_USER || 'your_user',
+      password: process.env.DB_PASSWORD || 'your_password',
+      max: 20,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 2000,
     });
     this.isConnected = false;
   }

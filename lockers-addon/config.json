@@ -11,5 +11,19 @@
   },
   "ingress": false,
   "panel_icon": "mdi:lock",
-  "arch": ["amd64", "armv7", "aarch64"]
+  "arch": ["amd64", "armv7", "aarch64"],
+  "options": {
+    "db_host": "a0d7b954-postgresql",
+    "db_port": 5432,
+    "db_user": "your_user",
+    "db_password": "your_password",
+    "db_name": "gym_lockers"
+  },
+  "schema": {
+    "db_host": "str",
+    "db_port": "int",
+    "db_user": "str",
+    "db_password": "str",
+    "db_name": "str"
+  }
 } 
