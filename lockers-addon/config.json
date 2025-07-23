@@ -1,6 +1,6 @@
 {
   "name": "Gym Locker Admin Dashboard",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "slug": "gym_locker_dashboard",
   "description": "Manage gym lockers with MQTT integration. Uses MariaDB for storage.",
   "startup": "services",
