@@ -1,26 +1,20 @@
-# Step 1: Use Node.js for backend
+# Build frontend
+FROM node:18 AS frontend
+WORKDIR /frontend
+COPY client/package*.json ./client/
+RUN cd client && npm install
+COPY client ./client
+RUN cd client && npm run build
+
+# Build backend
 FROM node:18 AS backend
-
 WORKDIR /app
-
-# Copy backend files
 COPY package*.json ./
+RUN npm install --production
 COPY . .
 
-# Install backend dependencies
-RUN npm install
+# Copy frontend build to backend (if needed)
+COPY --from=frontend /frontend/client/build ./client_build
 
-# Build frontend
-WORKDIR /app/client
-RUN npm install
-RUN npm run build
-
-# Move build to backend public folder (if serving static)
-WORKDIR /app
-RUN cp -r client/build ./client_build
-
-# Expose backend port
 EXPOSE 3001
-
-# Start backend
 CMD ["npm", "run", "server"] 
