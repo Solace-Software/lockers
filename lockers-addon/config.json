@@ -11,7 +11,5 @@
   },
   "ingress": false,
   "panel_icon": "mdi:lock",
-  "arch": ["amd64", "armv7", "aarch64"],
-  "options": {},
-  "schema": {}
+  "arch": ["amd64", "armv7", "aarch64"]
 } 
