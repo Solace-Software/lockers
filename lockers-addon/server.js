@@ -2279,6 +2279,36 @@ app.post('/api/test-mqtt', async (req, res) => {
   }
 });
 
+// Send test MQTT message
+app.post('/api/test-mqtt-message', async (req, res) => {
+  try {
+    if (!mqttClient || !isConnected) {
+      return res.status(400).json({ success: false, message: 'MQTT client not connected' });
+    }
+    
+    const testMessage = {
+      locker_id: 'TEST-LOCKER',
+      rfid_tag: '1234567890',
+      timestamp: new Date().toISOString(),
+      test: true
+    };
+    
+    // Publish test message to a test topic
+    mqttClient.publish('test/message', JSON.stringify(testMessage), (err) => {
+      if (err) {
+        console.error('❌ Failed to publish test message:', err);
+        res.status(500).json({ success: false, message: 'Failed to publish test message' });
+      } else {
+        console.log('📤 Published test MQTT message:', testMessage);
+        res.json({ success: true, message: 'Test MQTT message published' });
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error publishing test message:', error);
+    res.status(500).json({ success: false, message: 'Error publishing test message' });
+  }
+});
+
 // RFID Tag Management API Endpoints
 app.get('/api/rfid/check/:tag', async (req, res) => {
   try {
