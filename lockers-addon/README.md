@@ -4,7 +4,15 @@ A comprehensive locker management system with MQTT integration for gym facilitie
 
 ## Version History
 
-### v1.1.3 (Latest)
+### v1.1.4 (Latest)
+- **Removed all hardcoded credentials**: Implemented secure configuration system
+- **Added Home Assistant addon configuration priority**: Uses /data/options.json for secure credential storage
+- **Enhanced security**: No hardcoded credentials in codebase
+- **Added comprehensive security documentation**: SECURE_INSTALLATION.md with proper configuration guide
+- **Updated Docker deployment**: Uses environment variables for secure credential management
+- **Improved configuration system**: Priority order: addon config → environment variables → empty defaults
+
+### v1.1.3
 - **Fixed Docker container networking**: Added proper Home Assistant container name resolution
 - **Fixed MQTT connection issues**: Updated configuration to use core-mosquitto instead of localhost
 - **Fixed database connection issues**: Updated configuration to use core-mariadb instead of localhost

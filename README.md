@@ -4,9 +4,36 @@ A modern admin dashboard for managing MQTT-based gym lockers with real-time moni
 
 ## Version History
 
-### v1.1.0 (Latest)
+### v1.1.4 (Latest)
+- **Removed all hardcoded credentials**: Implemented secure configuration system
+- **Added Home Assistant addon configuration priority**: Uses /data/options.json for secure credential storage
+- **Enhanced security**: No hardcoded credentials in codebase
+- **Added comprehensive security documentation**: SECURE_INSTALLATION.md with proper configuration guide
+- **Updated Docker deployment**: Uses environment variables for secure credential management
+- **Improved configuration system**: Priority order: addon config → environment variables → empty defaults
+
+### v1.1.3
+- **Fixed Docker container networking**: Added proper Home Assistant container name resolution
+- **Fixed MQTT connection issues**: Updated configuration to use core-mosquitto instead of localhost
+- **Fixed database connection issues**: Updated configuration to use core-mariadb instead of localhost
+- **Added HA-specific configuration**: Created ha-config.json for Home Assistant environment
+- **Improved container communication**: Better integration with Home Assistant addon ecosystem
+
+### v1.1.2
+- **Fixed 503 Service Unavailable error**: Fixed static file serving and React app routing
+- **Improved Docker container compatibility**: Fixed client_build vs client/build path issues
+- **Enhanced static file serving**: Added support for both development and production paths
+- **Better error handling**: Added proper fallbacks for missing frontend files
+
+### v1.1.1
+- **Fixed Home Assistant addon web UI access**: Enabled ingress and proper routing
+- **Improved addon integration**: Better Home Assistant compatibility
+- **Fixed web UI URL format**: Added proper trailing slash and ingress entry
+- **Enhanced deployment**: Streamlined installation process
+
+### v1.1.0
 - **Fixed MQTT message flood issue**: Changed from wildcard subscription (`#`) to specific topic subscriptions
-- **Added message filtering**: Implemented topic-based filtering to prevent processing irrelevant messages  
+- **Added message filtering**: Implemented topic-based filtering to prevent processing irrelevant messages
 - **Added message size limits**: Prevent processing of large messages (like image data) that could cause memory issues
 - **Improved stability**: Server no longer crashes from overwhelming MQTT traffic
 - **Enhanced performance**: Reduced memory usage and improved response times
