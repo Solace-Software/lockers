@@ -26,7 +26,12 @@ const Settings = () => {
     port: 1883,
     username: '',
     password: '',
-    clientId: 'gym-admin'
+    clientId: 'gym-admin',
+    // Broker-specific settings
+    allowAnonymous: true,
+    maxConnections: 100,
+    maxMessageSize: 1024,
+    websocketPort: 9001
   });
   
   const [notifications, setNotifications] = useState({
@@ -256,14 +261,12 @@ const Settings = () => {
     }
   };
 
-  const testSocketConnection = () => {
-    if (socket && socket.connected) {
-      console.log('🧪 Testing Socket.IO connection...');
-      // Send a test message to server to verify connection
-      socket.emit('test-message', { test: 'Hello from frontend!' });
-      alert('Test message sent! Check console for responses.');
-    } else {
-      alert('Socket.IO not connected!');
+  const testMqttMessage = async () => {
+    try {
+      await axios.post('/api/test-mqtt-message');
+      alert('Test MQTT message sent! Check the message listener.');
+    } catch (error) {
+      alert('Failed to send test MQTT message. Make sure MQTT is connected.');
     }
   };
 
@@ -272,17 +275,17 @@ const Settings = () => {
       <DashboardHeader title="Settings" subtitle="Configure system preferences and MQTT connection" />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* MQTT Configuration */}
+        {/* MQTT Broker Configuration */}
         <DashboardCard>
           <div className="flex items-center space-x-3 mb-6">
             <Wifi className="w-6 h-6 text-cyan-400" />
-            <h3 className="text-lg font-semibold text-white">MQTT Configuration</h3>
+            <h3 className="text-lg font-semibold text-white">MQTT Broker Configuration</h3>
           </div>
 
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-cyan-200 mb-1">
-                MQTT Broker Host
+                Broker Host
               </label>
               <Input
                 type="text"
@@ -294,7 +297,7 @@ const Settings = () => {
 
             <div>
               <label className="block text-sm font-medium text-cyan-200 mb-1">
-                MQTT Broker Port
+                MQTT Port
               </label>
               <Input
                 type="number"
@@ -306,43 +309,80 @@ const Settings = () => {
 
             <div>
               <label className="block text-sm font-medium text-cyan-200 mb-1">
-                Username (optional)
+                WebSocket Port
+              </label>
+              <Input
+                type="number"
+                value={mqttConfig.websocketPort}
+                onChange={(e) => setMqttConfig({ ...mqttConfig, websocketPort: parseInt(e.target.value) })}
+                placeholder="9001"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-cyan-200 mb-1">
+                Max Connections
+              </label>
+              <Input
+                type="number"
+                value={mqttConfig.maxConnections}
+                onChange={(e) => setMqttConfig({ ...mqttConfig, maxConnections: parseInt(e.target.value) })}
+                placeholder="100"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-cyan-200 mb-1">
+                Max Message Size (bytes)
+              </label>
+              <Input
+                type="number"
+                value={mqttConfig.maxMessageSize}
+                onChange={(e) => setMqttConfig({ ...mqttConfig, maxMessageSize: parseInt(e.target.value) })}
+                placeholder="1024"
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="allowAnonymous"
+                checked={mqttConfig.allowAnonymous}
+                onChange={(e) => setMqttConfig({ ...mqttConfig, allowAnonymous: e.target.checked })}
+                className="rounded border-gray-300 text-cyan-600 focus:ring-cyan-500"
+              />
+              <label htmlFor="allowAnonymous" className="text-sm font-medium text-cyan-200">
+                Allow Anonymous Connections
+              </label>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-cyan-200 mb-1">
+                Admin Username (optional)
               </label>
               <Input
                 type="text"
                 value={mqttConfig.username}
                 onChange={(e) => setMqttConfig({ ...mqttConfig, username: e.target.value })}
-                placeholder="mqtt_username"
+                placeholder="admin"
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-cyan-200 mb-1">
-                Password (optional)
+                Admin Password (optional)
               </label>
               <Input
                 type="password"
                 value={mqttConfig.password}
                 onChange={(e) => setMqttConfig({ ...mqttConfig, password: e.target.value })}
-                placeholder="mqtt_password"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-cyan-200 mb-1">
-                Client ID
-              </label>
-              <Input
-                type="text"
-                value={mqttConfig.clientId}
-                onChange={(e) => setMqttConfig({ ...mqttConfig, clientId: e.target.value })}
-                placeholder="gym-admin"
+                placeholder="admin_password"
               />
             </div>
 
             <Button variant="secondary" className="w-full flex items-center justify-center space-x-2" onClick={testMqttConnection}>
               <TestTube className="w-4 h-4" />
-              <span>Test Connection</span>
+              <span>Test Broker Connection</span>
             </Button>
           </div>
         </DashboardCard>
@@ -425,10 +465,10 @@ const Settings = () => {
                 <Button
                   variant="outline"
                   className="w-full flex items-center justify-center space-x-2 text-sm"
-                  onClick={testSocketConnection}
+                  onClick={testMqttMessage}
                 >
                   <TestTube className="w-4 h-4" />
-                  <span>Test Socket Connection</span>
+                  <span>Send Test MQTT Message</span>
                 </Button>
               </div>
 
