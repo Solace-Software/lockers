@@ -4,6 +4,7 @@ const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 
 // Import database
 const Database = require('./database');
@@ -21,7 +22,19 @@ app.use(cors(corsOptions));
 
 // Middleware
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'client/build'))); // Enable static file serving
+
+// Serve static files from both possible locations
+const staticPaths = [
+  path.join(__dirname, 'client_build'),
+  path.join(__dirname, 'client/build')
+];
+
+staticPaths.forEach(staticPath => {
+  if (fs.existsSync(staticPath)) {
+    app.use(express.static(staticPath));
+    console.log(`📁 Serving static files from: ${staticPath}`);
+  }
+});
 
 const { mqttConfig: addonMqttConfig } = require('./config');
 
@@ -2451,7 +2464,17 @@ app.get('/api/status', (req, res) => {
 
 // Catch-all route for client-side routing
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'client/build/index.html'));
+  // Try client_build first (Docker container), then client/build (development)
+  const indexPath = path.join(__dirname, 'client_build/index.html');
+  const devIndexPath = path.join(__dirname, 'client/build/index.html');
+  
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else if (fs.existsSync(devIndexPath)) {
+    res.sendFile(devIndexPath);
+  } else {
+    res.status(404).json({ error: 'Frontend not found. Please build the React app.' });
+  }
 });
 
 // Ensure graceful shutdown always closes MQTT client

@@ -4,7 +4,13 @@ A comprehensive locker management system with MQTT integration for gym facilitie
 
 ## Version History
 
-### v1.1.1 (Latest)
+### v1.1.2 (Latest)
+- **Fixed 503 Service Unavailable error**: Fixed static file serving and React app routing
+- **Improved Docker container compatibility**: Fixed client_build vs client/build path issues
+- **Enhanced static file serving**: Added support for both development and production paths
+- **Better error handling**: Added proper fallbacks for missing frontend files
+
+### v1.1.1
 - **Fixed Home Assistant addon web UI access**: Enabled ingress and proper routing
 - **Improved addon integration**: Better Home Assistant compatibility
 - **Fixed web UI URL format**: Added proper trailing slash and ingress entry
