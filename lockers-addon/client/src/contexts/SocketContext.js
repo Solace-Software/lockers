@@ -26,8 +26,9 @@ export const SocketProvider = ({ children }) => {
         newSocket.close();
       }
 
-      // Create new socket connection
-      newSocket = io('http://localhost:3001', {
+      // Create new socket connection - use relative URL for Docker compatibility
+      const socketUrl = window.location.origin;
+      newSocket = io(socketUrl, {
         transports: ['websocket'],
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
