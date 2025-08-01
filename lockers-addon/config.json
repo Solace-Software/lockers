@@ -6,11 +6,12 @@
   "repository": "https://github.com/Solace-Software/lockers",
   "startup": "services",
   "boot": "auto",
-  "webui": "http://[HOST]:[PORT:3001]",
+  "webui": "http://[HOST]:[PORT:3001]/",
   "ports": {
     "3001/tcp": 3001
   },
-  "ingress": false,
+  "ingress": true,
+  "ingress_entry": "/",
   "panel_icon": "mdi:lock",
   "arch": ["amd64", "armv7", "aarch64"],
   "options": {
