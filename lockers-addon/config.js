@@ -15,29 +15,7 @@ function getAddonConfig() {
     console.log('⚠️ Could not read addon configuration:', error.message);
   }
   
-  try {
-    // Try to read from Docker-specific config file (for Docker environment)
-    const dockerConfigPath = path.join(__dirname, 'docker-config.json');
-    if (fs.existsSync(dockerConfigPath)) {
-      const config = JSON.parse(fs.readFileSync(dockerConfigPath, 'utf8'));
-      console.log('📋 Loaded configuration from Docker config file');
-      return config;
-    }
-  } catch (error) {
-    console.log('⚠️ Could not read Docker config file:', error.message);
-  }
-
-  try {
-    // Try to read from HA-specific config file (for Home Assistant environment)
-    const haConfigPath = path.join(__dirname, 'ha-config.json');
-    if (fs.existsSync(haConfigPath)) {
-      const config = JSON.parse(fs.readFileSync(haConfigPath, 'utf8'));
-      console.log('📋 Loaded configuration from HA config file');
-      return config;
-    }
-  } catch (error) {
-    console.log('⚠️ Could not read HA config file:', error.message);
-  }
+  // No hardcoded credential files - only use addon configuration or environment variables
   
   try {
     // Try to read from local config file (for development)
@@ -76,8 +54,8 @@ const addonConfig = getAddonConfig();
 const dbConfig = {
   host: addonConfig.db_host || 'core-mariadb',
   port: addonConfig.db_port ? parseInt(addonConfig.db_port) : 3306,
-  user: addonConfig.db_user || 'your_user',
-  password: addonConfig.db_password || 'your_password',
+  user: addonConfig.db_user || '',
+  password: addonConfig.db_password || '',
   database: addonConfig.db_name || 'gym_lockers'
 };
 

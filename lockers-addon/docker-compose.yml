@@ -43,14 +43,14 @@ services:
     environment:
       - DB_HOST=mariadb
       - DB_PORT=3306
-      - DB_USER=solace
-      - DB_PASSWORD=solace123
+      - DB_USER=${DB_USER:-solace}
+      - DB_PASSWORD=${DB_PASSWORD:-solace123}
       - DB_NAME=gym_lockers
       - MQTT_HOST=mosquitto
       - MQTT_PORT=1883
-      - MQTT_USERNAME=
-      - MQTT_PASSWORD=
-      - MQTT_CLIENT_ID=gym-admin-docker
+      - MQTT_USERNAME=${MQTT_USERNAME:-}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-}
+      - MQTT_CLIENT_ID=${MQTT_CLIENT_ID:-gym-admin-docker}
     depends_on:
       - mariadb
       - mosquitto

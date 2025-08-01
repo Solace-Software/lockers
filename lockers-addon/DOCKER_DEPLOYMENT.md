@@ -55,17 +55,20 @@ docker-compose logs -f
 ## 🔧 Configuration
 
 ### Environment Variables
-The dashboard is pre-configured with these environment variables:
+The dashboard uses environment variables for configuration. Create a `.env` file for secure credentials:
 ```bash
+# Database Configuration
 DB_HOST=mariadb
 DB_PORT=3306
-DB_USER=solace
-DB_PASSWORD=solace123
+DB_USER=your_db_user
+DB_PASSWORD=your_secure_password
 DB_NAME=gym_lockers
+
+# MQTT Configuration
 MQTT_HOST=mosquitto
 MQTT_PORT=1883
-MQTT_USERNAME=
-MQTT_PASSWORD=
+MQTT_USERNAME=your_mqtt_user
+MQTT_PASSWORD=your_mqtt_password
 MQTT_CLIENT_ID=gym-admin-docker
 ```
 
@@ -97,7 +100,7 @@ To modify the configuration:
 - **Host**: localhost
 - **Port**: 3306
 - **Database**: gym_lockers
-- **Credentials**: solace/solace123
+- **Credentials**: Configure via environment variables
 
 ### MQTT Broker
 - **Host**: localhost
