@@ -4,7 +4,13 @@ A comprehensive locker management system with MQTT integration for gym facilitie
 
 ## Version History
 
-### v1.1.0 (Latest)
+### v1.1.1 (Latest)
+- **Fixed Home Assistant addon web UI access**: Enabled ingress and proper routing
+- **Improved addon integration**: Better Home Assistant compatibility
+- **Fixed web UI URL format**: Added proper trailing slash and ingress entry
+- **Enhanced deployment**: Streamlined installation process
+
+### v1.1.0
 - **Fixed MQTT message flood issue**: Changed from wildcard subscription (`#`) to specific topic subscriptions
 - **Added message filtering**: Implemented topic-based filtering to prevent processing irrelevant messages
 - **Added message size limits**: Prevent processing of large messages (like image data) that could cause memory issues
