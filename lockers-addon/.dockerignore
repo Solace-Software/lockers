@@ -6,4 +6,5 @@ npm-debug.log
 .gitignore
 *.log
 client/node_modules
-client/.cache 
+client/.cache
+local-config.json 
