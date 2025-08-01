@@ -30,9 +30,9 @@ docker-compose ps
 
 echo ""
 echo "✅ Gym Locker Dashboard is starting up!"
-echo "🌐 Web UI: http://localhost:3001"
+echo "🌐 Web UI: http://localhost:3002"
 echo "📊 Database: localhost:3306 (user: solace, password: solace123)"
-echo "📡 MQTT Broker: localhost:1883"
+echo "📡 MQTT Broker: localhost:1884"
 echo ""
 echo "📋 Useful commands:"
 echo "  View logs: docker-compose logs -f"

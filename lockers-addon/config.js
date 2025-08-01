@@ -16,6 +16,18 @@ function getAddonConfig() {
   }
   
   try {
+    // Try to read from Docker-specific config file (for Docker environment)
+    const dockerConfigPath = path.join(__dirname, 'docker-config.json');
+    if (fs.existsSync(dockerConfigPath)) {
+      const config = JSON.parse(fs.readFileSync(dockerConfigPath, 'utf8'));
+      console.log('📋 Loaded configuration from Docker config file');
+      return config;
+    }
+  } catch (error) {
+    console.log('⚠️ Could not read Docker config file:', error.message);
+  }
+
+  try {
     // Try to read from HA-specific config file (for Home Assistant environment)
     const haConfigPath = path.join(__dirname, 'ha-config.json');
     if (fs.existsSync(haConfigPath)) {

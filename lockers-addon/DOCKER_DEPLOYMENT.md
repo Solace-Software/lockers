@@ -42,14 +42,14 @@ docker-compose logs -f
 
 ### 2. **Mosquitto MQTT Broker**
 - **Container**: `gym-lockers-mqtt`
-- **Port**: `1883` (MQTT), `9001` (WebSocket)
+- **Port**: `1884` (MQTT), `9002` (WebSocket)
 - **Configuration**: `mosquitto.conf`
 - **Authentication**: Anonymous (for development)
 
 ### 3. **Gym Locker Dashboard**
 - **Container**: `gym-locker-dashboard`
-- **Port**: `3001`
-- **Web UI**: http://localhost:3001
+- **Port**: `3002`
+- **Web UI**: http://localhost:3002
 - **Environment**: Pre-configured for Docker
 
 ## 🔧 Configuration
@@ -90,7 +90,7 @@ To modify the configuration:
 ## 📊 Access Points
 
 ### Web Dashboard
-- **URL**: http://localhost:3001
+- **URL**: http://localhost:3002
 - **Features**: Full locker management interface
 
 ### Database
@@ -101,8 +101,8 @@ To modify the configuration:
 
 ### MQTT Broker
 - **Host**: localhost
-- **Port**: 1883
-- **WebSocket**: localhost:9001
+- **Port**: 1884
+- **WebSocket**: localhost:9002
 - **Topics**: All locker-related topics
 
 ## 🛠️ Management Commands

@@ -28,8 +28,8 @@ services:
       - mosquitto_logs:/mosquitto/log
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
     ports:
-      - "1883:1883"
-      - "9001:9001"
+      - "1884:1883"
+      - "9002:9001"
     networks:
       - gym-network
 
@@ -39,7 +39,7 @@ services:
     container_name: gym-locker-dashboard
     restart: unless-stopped
     ports:
-      - "3001:3001"
+      - "3002:3001"
     environment:
       - DB_HOST=mariadb
       - DB_PORT=3306
