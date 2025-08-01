@@ -1,20 +1,64 @@
 const mysql = require('mysql2/promise');
+const fs = require('fs');
+const path = require('path');
 
-// Debug: Print DB environment variables
-console.log('DB_HOST:', process.env.DB_HOST);
-console.log('DB_PORT:', process.env.DB_PORT);
-console.log('DB_USER:', process.env.DB_USER);
-console.log('DB_PASSWORD:', process.env.DB_PASSWORD);
-console.log('DB_NAME:', process.env.DB_NAME);
+// Function to get addon configuration
+function getAddonConfig() {
+  try {
+    // Try to read from Home Assistant addon configuration
+    const configPath = '/data/options.json';
+    if (fs.existsSync(configPath)) {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      console.log('📋 Loaded configuration from addon options');
+      return config;
+    }
+  } catch (error) {
+    console.log('⚠️ Could not read addon configuration:', error.message);
+  }
+  
+  try {
+    // Try to read from local config file
+    const localConfigPath = path.join(__dirname, 'local-config.json');
+    if (fs.existsSync(localConfigPath)) {
+      const config = JSON.parse(fs.readFileSync(localConfigPath, 'utf8'));
+      console.log('📋 Loaded configuration from local config file');
+      return config;
+    }
+  } catch (error) {
+    console.log('⚠️ Could not read local config file:', error.message);
+  }
+  
+  // Fallback to environment variables
+  const config = {
+    db_host: process.env.DB_HOST,
+    db_port: process.env.DB_PORT,
+    db_user: process.env.DB_USER,
+    db_password: process.env.DB_PASSWORD,
+    db_name: process.env.DB_NAME
+  };
+  
+  console.log('📋 Using environment variables for configuration');
+  return config;
+}
+
+// Get configuration
+const addonConfig = getAddonConfig();
+
+// Debug: Print DB configuration
+console.log('DB_HOST:', addonConfig.db_host);
+console.log('DB_PORT:', addonConfig.db_port);
+console.log('DB_USER:', addonConfig.db_user);
+console.log('DB_PASSWORD:', addonConfig.db_password ? '***' : 'undefined');
+console.log('DB_NAME:', addonConfig.db_name);
 
 class Database {
   constructor() {
     this.pool = mysql.createPool({
-      host: process.env.DB_HOST || 'core-mariadb',
-      port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : 3306,
-      user: process.env.DB_USER || 'your_user',
-      password: process.env.DB_PASSWORD || 'your_password',
-      database: process.env.DB_NAME || 'gym_lockers',
+      host: addonConfig.db_host || 'core-mariadb',
+      port: addonConfig.db_port ? parseInt(addonConfig.db_port) : 3306,
+      user: addonConfig.db_user || 'your_user',
+      password: addonConfig.db_password || 'your_password',
+      database: addonConfig.db_name || 'gym_lockers',
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0

@@ -5,7 +5,10 @@
   "main": "server.js",
   "scripts": {
     "start": "node start-server.js",
-    "server": "node start-server.js"
+    "server": "node start-server.js",
+    "setup": "node setup-database.js",
+    "test-db": "node test-database.js",
+    "dev": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
