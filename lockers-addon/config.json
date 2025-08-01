@@ -1,6 +1,6 @@
 {
   "name": "Gym Locker Admin Dashboard",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "slug": "gym_locker_dashboard",
   "description": "Manage gym lockers with MQTT integration. Uses MariaDB for storage.",
   "repository": "https://github.com/Solace-Software/lockers",
@@ -18,13 +18,23 @@
     "db_port": 3306,
     "db_user": "your_user",
     "db_password": "your_password",
-    "db_name": "gym_lockers"
+    "db_name": "gym_lockers",
+    "mqtt_host": "core-mosquitto",
+    "mqtt_port": 1883,
+    "mqtt_username": "",
+    "mqtt_password": "",
+    "mqtt_client_id": "gym-admin"
   },
   "schema": {
     "db_host": "str",
     "db_port": "int",
     "db_user": "str",
     "db_password": "str",
-    "db_name": "str"
+    "db_name": "str",
+    "mqtt_host": "str",
+    "mqtt_port": "int",
+    "mqtt_username": "str",
+    "mqtt_password": "str",
+    "mqtt_client_id": "str"
   }
 } 

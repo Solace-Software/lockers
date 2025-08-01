@@ -261,6 +261,11 @@ const Settings = () => {
     }
   };
 
+<<<<<<< Updated upstream
+=======
+
+
+>>>>>>> Stashed changes
   const testMqttMessage = async () => {
     try {
       await axios.post('/api/test-mqtt-message');

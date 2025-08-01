@@ -23,13 +23,15 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'client/build'))); // Enable static file serving
 
+const { mqttConfig: addonMqttConfig } = require('./config');
+
 // MQTT Configuration - Dynamic settings from API
 let mqttConfig = {
-  host: 'localhost',
-  port: 1883,
-  username: undefined,
-  password: undefined,
-  clientId: `gym-admin-${Math.random().toString(16).slice(3)}`
+  host: addonMqttConfig.host,
+  port: addonMqttConfig.port,
+  username: addonMqttConfig.username,
+  password: addonMqttConfig.password,
+  clientId: addonMqttConfig.clientId
 };
 
 // Settings storage (in production, use a database)
@@ -2432,6 +2434,9 @@ process.on('SIGINT', async () => {
   // ... existing shutdown logic ...
   process.exit(0);
 });
+
+// Global shutdown flag
+let isShuttingDown = false;
 
 // Add this middleware before your routes (after app initialization, before routes)
 app.use((req, res, next) => {
