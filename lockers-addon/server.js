@@ -2435,9 +2435,6 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
-// Global shutdown flag
-let isShuttingDown = false;
-
 // Add this middleware before your routes (after app initialization, before routes)
 app.use((req, res, next) => {
   if (isShuttingDown) {
