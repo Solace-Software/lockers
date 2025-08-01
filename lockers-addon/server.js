@@ -130,11 +130,23 @@ function connectMQTT() {
       mqttStatus = 'connected';
       mqttReconnectDelay = 5000; // Reset delay on success
       console.log('✅ Connected to MQTT broker');
-      mqttClient.subscribe('#', (err) => {
+      // Subscribe to specific locker-related topics instead of all topics
+      const topics = [
+        'lockers/#',           // All locker-related topics
+        'locker/#',            // Alternative locker topic format
+        'rubik/#',             // Rubik locker topics
+        'heartbeat/#',         // Heartbeat messages
+        '+/sync',              // Any device sync messages
+        '+/send',              // Any device send messages
+        '+/accesslist',        // Any device access list messages
+        '+/cmd'                // Any device command messages
+      ];
+      
+      mqttClient.subscribe(topics, (err) => {
         if (err) {
           console.error('❌ Failed to subscribe to topics:', err);
         } else {
-          console.log('📡 Subscribed to: # (all topics)');
+          console.log('📡 Subscribed to locker-specific topics:', topics);
         }
       });
     });
@@ -207,7 +219,31 @@ async function handleMqttMessage(topic, message) {
     return;
   }
 
+  // Filter out non-locker related topics to prevent processing irrelevant messages
+  const relevantTopics = [
+    'lockers',
+    'locker', 
+    'rubik',
+    'heartbeat'
+  ];
+  
+  const topicParts = topic.split('/');
+  const baseTopic = topicParts[0];
+  
+  // Skip processing if topic doesn't match any relevant base topics
+  if (!relevantTopics.some(relevant => baseTopic.toLowerCase().includes(relevant.toLowerCase()))) {
+    console.log(`⏭️ Skipping irrelevant topic: ${topic}`);
+    return;
+  }
+
   try {
+    // Check message size to prevent processing very large messages (like images)
+    const messageSize = message.length;
+    if (messageSize > 10000) { // 10KB limit
+      console.log(`⏭️ Skipping large message (${messageSize} bytes) on topic: ${topic}`);
+      return;
+    }
+    
     console.log(`📨 MQTT Message received on ${topic}: ${message.toString()}`);
     
     let payload;

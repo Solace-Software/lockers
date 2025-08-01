@@ -2,6 +2,21 @@
 
 A comprehensive locker management system with MQTT integration for gym facilities.
 
+## Version History
+
+### v1.1.0 (Latest)
+- **Fixed MQTT message flood issue**: Changed from wildcard subscription (`#`) to specific topic subscriptions
+- **Added message filtering**: Implemented topic-based filtering to prevent processing irrelevant messages
+- **Added message size limits**: Prevent processing of large messages (like image data) that could cause memory issues
+- **Improved stability**: Server no longer crashes from overwhelming MQTT traffic
+- **Enhanced performance**: Reduced memory usage and improved response times
+
+### v1.0.0
+- Initial release with basic locker management functionality
+- MQTT integration for real-time updates
+- RFID tag management and user assignment
+- Web-based dashboard interface
+
 ## Features
 
 - Real-time locker monitoring via MQTT
@@ -20,7 +35,7 @@ When running as a Home Assistant addon, configure the database settings in the a
 
 ```json
 {
-  "db_host": "core-mariadb",
+  "db_host": "ccore-mariadb",
   "db_port": 3306,
   "db_user": "your_user",
   "db_password": "your_password",
