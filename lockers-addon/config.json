@@ -1,8 +1,9 @@
 {
   "name": "Gym Locker Admin Dashboard",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "slug": "gym_locker_dashboard",
   "description": "Manage gym lockers with MQTT integration. Uses MariaDB for storage.",
+  "repository": "https://github.com/Solace-Software/lockers",
   "startup": "services",
   "boot": "auto",
   "webui": "http://[HOST]:[PORT:3001]",
