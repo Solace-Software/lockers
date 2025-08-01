@@ -1,6 +1,6 @@
 {
   "name": "Solace Technologies - Lockers",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "slug": "gym_locker_dashboard_all_in_one",
   "description": "Complete gym locker management system with integrated MQTT broker and database. Everything in one addon - no external dependencies required.",
   "repository": "https://github.com/Solace-Software/lockers",
