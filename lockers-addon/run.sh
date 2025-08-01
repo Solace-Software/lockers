@@ -38,6 +38,64 @@ mkdir -p /var/lib/mysql /var/log/mysql /var/run/mysqld
 mkdir -p /mosquitto/data /mosquitto/log /mosquitto/config
 mkdir -p /app/logs /app/data
 
+# Generate supervisor configuration based on external MQTT setting
+bashio::log.info "Generating supervisor configuration..."
+cat > /etc/supervisor/conf.d/supervisord.conf << EOF
+[supervisord]
+nodaemon=true
+user=root
+logfile=/app/logs/supervisord.log
+pidfile=/app/supervisord.pid
+
+[program:mariadb]
+command=/usr/bin/mysqld_safe --datadir=/var/lib/mysql
+user=mysql
+autostart=true
+autorestart=true
+startretries=3
+stdout_logfile=/app/logs/mariadb.log
+stderr_logfile=/app/logs/mariadb.error.log
+priority=100
+environment=HOME="/var/lib/mysql"
+
+EOF
+
+# Add MQTT configuration only if not using external MQTT
+if [ "$USE_EXTERNAL_MQTT" != "true" ]; then
+    cat >> /etc/supervisor/conf.d/supervisord.conf << EOF
+[program:mosquitto]
+command=/usr/sbin/mosquitto -c /mosquitto/config/mosquitto.conf
+user=mosquitto
+autostart=true
+autorestart=true
+startretries=3
+stdout_logfile=/app/logs/mosquitto.log
+stderr_logfile=/app/logs/mosquitto.error.log
+priority=200
+startsecs=5
+
+EOF
+fi
+
+# Add application configuration
+cat >> /etc/supervisor/conf.d/supervisord.conf << EOF
+[program:gym-locker-app]
+command=/usr/bin/node /app/server.js
+user=root
+directory=/app
+autostart=true
+autorestart=true
+startretries=3
+stdout_logfile=/app/logs/app.log
+stderr_logfile=/app/logs/app.error.log
+priority=300
+environment=DB_HOST=localhost,DB_PORT=3306,DB_USER=gym_admin,DB_PASSWORD=secure_password_123,DB_NAME=gym_lockers,MQTT_HOST=localhost,MQTT_PORT=1883,MQTT_USERNAME=gym_mqtt_user,MQTT_PASSWORD=mqtt_password_123,MQTT_CLIENT_ID=gym-admin-ha-addon
+
+[eventlistener:processes]
+command=bash -c "while true; do sleep 30; done"
+events=PROCESS_STATE_STOPPED,PROCESS_STATE_EXITED,PROCESS_STATE_FATAL
+EOF
+
 # Initialize database if it doesn't exist
 if [ ! -f /var/lib/mysql/mysql ]; then
     bashio::log.info "Initializing database..."
@@ -91,22 +149,5 @@ export SYSTEM_DEBUG_MODE="$SYSTEM_DEBUG_MODE"
 # Start supervisor to manage all services
 bashio::log.info "Starting supervisor..."
 
-# Start supervisor in background
-/usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf &
-
-# Wait a moment for supervisor to start
-sleep 2
-
-# Conditionally start built-in MQTT broker
-if [ "$USE_EXTERNAL_MQTT" != "true" ]; then
-    bashio::log.info "Starting built-in MQTT broker..."
-    supervisorctl start mosquitto
-else
-    bashio::log.info "Skipping built-in MQTT broker (using external)"
-fi
-
-# Wait for services to be ready
-sleep 5
-
-# Keep the script running
-wait 
+# Start supervisor
+exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf 
