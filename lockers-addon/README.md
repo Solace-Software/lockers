@@ -1,91 +1,70 @@
-# Gym Locker Admin Dashboard - Home Assistant Addon
+# Solace Technologies - Lockers
 
-A comprehensive locker management system with MQTT integration for gym facilities. Features real-time monitoring, RFID management, user assignment, and analytics dashboard.
+A comprehensive all-in-one locker management system for gym facilities. Features real-time monitoring, RFID management, user assignment, and analytics dashboard - everything runs in a single Home Assistant addon with no external dependencies.
 
 ## 🚀 Quick Start
 
 1. **Add the repository** to your Home Assistant addon store
-2. **Install the addon** from the store
-3. **Configure the settings** (see Configuration section below)
-4. **Start the addon** and access the dashboard
+2. **Install "Solace Technologies - Lockers"** from the store
+3. **Start the addon** - no external database or MQTT broker required
+4. **Access the dashboard** via the web UI
 
 ## 📋 Features
 
-- **Real-time Locker Monitoring**: Live status updates via MQTT
+- **All-in-One Solution**: Complete system in a single addon - no external dependencies
+- **Real-time Locker Monitoring**: Live status updates via integrated MQTT broker
 - **RFID Tag Management**: Assign and manage RFID tags for users
 - **User Management**: Complete user lifecycle management
 - **Locker Groups**: Organize lockers into logical groups
 - **Activity Analytics**: Track usage patterns and statistics
-- **Web Dashboard**: Modern, responsive web interface
-- **MQTT Integration**: Seamless integration with Home Assistant MQTT
-- **Database Storage**: Persistent data storage with MariaDB
+- **Modern Web Dashboard**: Responsive, intuitive web interface
+- **Integrated Database**: Built-in MariaDB database
+- **Integrated MQTT Broker**: Built-in Mosquitto broker for real-time communication
 - **Security**: Role-based access control and audit logging
+
+## 🏗️ Architecture
+
+This addon uses an **all-in-one architecture** where everything runs in a single container:
+
+```
+Solace Technologies - Lockers Addon
+├── Node.js Backend (Express.js)
+├── React Frontend (Built and served)
+├── MariaDB Database (Integrated)
+├── Mosquitto MQTT Broker (Integrated)
+└── Supervisor (Process management)
+```
+
+**Benefits:**
+- ✅ **Zero external dependencies** - Everything included
+- ✅ **Easy installation** - One-click setup
+- ✅ **Consistent performance** - Optimized for the addon
+- ✅ **Simple maintenance** - Single container to manage
 
 ## ⚙️ Configuration
 
-### Database Configuration
+The addon comes pre-configured with sensible defaults. All services are integrated and ready to use immediately.
 
-The addon requires a MariaDB database. You can use the Home Assistant MariaDB addon or configure an external database.
+### Default Configuration
 
-#### Option 1: Home Assistant MariaDB Addon (Recommended)
-
-1. Install the **MariaDB** addon from the Home Assistant addon store
-2. Configure the MariaDB addon with:
-   - Database name: `gym_lockers`
-   - Username: `gym_admin`
-   - Password: `your_secure_password`
-3. In the Gym Locker Dashboard addon configuration:
-   ```json
-   {
-     "db_host": "core-mariadb",
-     "db_port": 3306,
-     "db_user": "gym_admin",
-     "db_password": "your_secure_password",
-     "db_name": "gym_lockers"
-   }
-   ```
-
-#### Option 2: External Database
-
-If using an external MariaDB/MySQL database:
 ```json
 {
-  "db_host": "your-database-host",
-  "db_port": 3306,
-  "db_user": "your_username",
-  "db_password": "your_password",
-  "db_name": "gym_lockers"
-}
-```
-
-### MQTT Configuration
-
-The addon integrates with Home Assistant's MQTT broker for real-time communication.
-
-#### Option 1: Home Assistant MQTT Addon (Recommended)
-
-1. Install the **Mosquitto broker** addon from the Home Assistant addon store
-2. Configure the MQTT settings:
-   ```json
-   {
-     "mqtt_host": "core-mosquitto",
-     "mqtt_port": 1883,
-     "mqtt_username": "",
-     "mqtt_password": "",
-     "mqtt_client_id": "gym-admin"
-   }
-   ```
-
-#### Option 2: External MQTT Broker
-
-For external MQTT brokers:
-```json
-{
-  "mqtt_host": "your-mqtt-broker-host",
-  "mqtt_port": 1883,
-  "mqtt_username": "your_mqtt_username",
-  "mqtt_password": "your_mqtt_password",
-  "mqtt_client_id": "gym-admin"
+  "db_password": "secure_password_123",
+  "mqtt_username": "gym_mqtt_user", 
+  "mqtt_password": "mqtt_password_123",
+  "mqtt_client_id": "gym-admin-ha-addon",
+  "mqtt_websocket_port": 9001,
+  "mqtt_allow_anonymous": true,
+  "mqtt_max_connections": 100,
+  "mqtt_max_message_size": 1024,
+  "system_auto_refresh": 30,
+  "system_data_retention_days": 90,
+  "system_backup_enabled": true,
+  "system_debug_mode": false,
+  "security_session_timeout": 30,
+  "security_password_policy": "standard",
+  "security_two_factor_auth": false,
+  "security_audit_logging": true
 }
 ```
 
@@ -103,11 +82,6 @@ For external MQTT brokers:
 - `system_backup_enabled`: Enable automatic backups (default: true)
 - `system_debug_mode`: Enable debug logging (default: false)
 
-#### Notification Settings
-- `notifications_email_alerts`: Email alerts for important events (default: true)
-- `notifications_usage_reports`: Weekly usage reports (default: false)
-- `notifications_real_time_updates`: Real-time update notifications (default: true)
-
 #### Security Settings
 - `security_session_timeout`: Session timeout in minutes (5-480, default: 30)
 - `security_password_policy`: Password policy (standard|strong|enterprise, default: standard)
@@ -118,9 +92,8 @@ For external MQTT brokers:
 
 ### Prerequisites
 
-1. **Home Assistant Core/Supervisor**: Version 2023.8 or later
-2. **MariaDB Addon**: For database storage
-3. **Mosquitto Broker Addon**: For MQTT communication
+- **Home Assistant Core/Supervisor**: Version 2023.8 or later
+- **No external dependencies required** - Everything is included!
 
 ### Installation Steps
 
@@ -130,16 +103,11 @@ For external MQTT brokers:
    - Add: `https://github.com/Solace-Software/lockers`
 
 2. **Install the addon**:
-   - Find "Gym Locker Admin Dashboard" in the addon store
+   - Find **"Solace Technologies - Lockers"** in the addon store
    - Click **Install**
 
-3. **Configure the addon**:
-   - Click **Configuration** tab
-   - Set up database and MQTT settings (see Configuration section)
-   - Click **Save**
-
-4. **Start the addon**:
-   - Click **Start**
+3. **Start the addon**:
+   - Click **Start** - no additional configuration required
    - Access the dashboard via the **Open Web UI** button
 
 ## 📊 Dashboard Features
@@ -163,6 +131,8 @@ For external MQTT brokers:
 - **Notification preferences**: Configure alert settings
 
 ## 🔌 MQTT Integration
+
+The addon includes a built-in MQTT broker for real-time communication.
 
 ### Topic Structure
 
@@ -209,25 +179,15 @@ gym/lockers/{locker_id}/command     # Commands to lockers
 
 ### Common Issues
 
-#### Database Connection Issues
+#### Addon Won't Start
 
-**Symptoms**: Addon fails to start, database connection errors in logs
-
-**Solutions**:
-1. Verify MariaDB addon is running
-2. Check database credentials in addon configuration
-3. Ensure database exists: `CREATE DATABASE gym_lockers;`
-4. Verify user permissions: `GRANT ALL PRIVILEGES ON gym_lockers.* TO 'gym_admin'@'%';`
-
-#### MQTT Connection Issues
-
-**Symptoms**: No real-time updates, MQTT connection errors
+**Symptoms**: Addon fails to start, shows error status
 
 **Solutions**:
-1. Verify Mosquitto broker addon is running
-2. Check MQTT credentials in addon configuration
-3. Test MQTT connection using the dashboard test button
-4. Verify network connectivity between addons
+1. Check Home Assistant logs for detailed error messages
+2. Verify sufficient system resources (RAM, storage)
+3. Restart the addon
+4. Check port conflicts (addon uses ports 3001, 1883, 9001, 3306)
 
 #### Web UI Not Accessible
 
@@ -235,15 +195,25 @@ gym/lockers/{locker_id}/command     # Commands to lockers
 
 **Solutions**:
 1. Check addon is running (green status)
-2. Verify port 3001 is not blocked
-3. Try accessing via Home Assistant ingress
-4. Check browser console for JavaScript errors
+2. Try accessing via Home Assistant ingress
+3. Check browser console for JavaScript errors
+4. Verify no firewall blocking port 3001
+
+#### MQTT Connection Issues
+
+**Symptoms**: No real-time updates, MQTT connection errors
+
+**Solutions**:
+1. Verify built-in MQTT broker is running
+2. Check MQTT credentials in addon configuration
+3. Test MQTT connection using the dashboard test button
+4. Restart the addon to reset MQTT broker
 
 ### Log Analysis
 
 Access addon logs in Home Assistant:
 1. Go to **Settings** → **Add-ons**
-2. Find "Gym Locker Admin Dashboard"
+2. Find **"Solace Technologies - Lockers"**
 3. Click **Logs** tab
 
 **Common log patterns**:
@@ -264,40 +234,34 @@ Access addon logs in Home Assistant:
 
 ## 🔒 Security Considerations
 
-### Database Security
-- Use strong passwords for database users
-- Limit database user permissions to necessary operations
-- Regularly backup database data
+### Built-in Security
+- **Integrated database**: No external database connections
+- **Built-in MQTT broker**: No external MQTT dependencies
+- **Container isolation**: Secure process isolation
+- **Audit logging**: Track all admin actions
+
+### Best Practices
+- Use strong passwords for admin access
 - Enable `security_audit_logging` for compliance
-
-### MQTT Security
-- Use authentication for MQTT broker
-- Implement TLS/SSL for MQTT connections
-- Use unique client IDs for each installation
-- Monitor MQTT traffic for anomalies
-
-### Web Security
-- Enable `security_two_factor_auth` for admin access
-- Use strong password policies
-- Configure appropriate session timeouts
 - Regularly update the addon
+- Monitor system logs for anomalies
 
 ## 📈 Scaling Considerations
 
 ### Small Installation (< 50 lockers)
 - Default configuration is sufficient
-- Single MariaDB instance
-- Standard MQTT broker setup
+- Built-in database handles load well
+- Integrated MQTT broker provides real-time updates
 
 ### Medium Installation (50-200 lockers)
-- Consider dedicated MariaDB instance
-- Monitor MQTT message volume
+- Monitor system resources
 - Enable `system_backup_enabled`
 - Configure appropriate data retention
+- Consider dedicated Home Assistant instance
 
 ### Large Installation (> 200 lockers)
-- Dedicated database server
-- MQTT cluster for high availability
+- Dedicated Home Assistant instance recommended
+- Monitor container resource usage
 - Separate backup strategy
 - Load balancing for web interface
 - Monitoring and alerting setup
@@ -310,17 +274,17 @@ Access addon logs in Home Assistant:
 3. Review changelog for breaking changes
 4. Test functionality after update
 
-### Database Maintenance
+### Data Maintenance
 - Regular backups (automated with `system_backup_enabled`)
 - Monitor database size and performance
 - Clean old logs periodically
-- Optimize database queries as needed
+- Optimize data retention settings
 
-### MQTT Maintenance
-- Monitor MQTT broker performance
-- Clean up old retained messages
-- Update MQTT broker security settings
-- Monitor connection stability
+### System Monitoring
+- Monitor container resource usage
+- Check MQTT broker performance
+- Monitor database performance
+- Review audit logs regularly
 
 ## 📞 Support
 
@@ -352,11 +316,12 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 🏷️ Version History
 
 ### v1.2.0 (Latest)
-- **Enhanced configuration schema**: Added comprehensive configuration options
-- **Improved error handling**: Better MQTT connection testing and error messages
-- **Scalability improvements**: Support for larger installations
-- **Security enhancements**: Additional security configuration options
-- **Documentation updates**: Comprehensive README and configuration guide
+- **All-in-one architecture**: Complete system in single container
+- **Solace Technologies branding**: Updated addon title and branding
+- **Integrated services**: Built-in database and MQTT broker
+- **Zero dependencies**: No external database or MQTT broker required
+- **Enhanced configuration**: Comprehensive configuration options
+- **Improved documentation**: Updated README for all-in-one solution
 
 ### v1.1.4
 - **Removed hardcoded credentials**: Secure configuration system

@@ -36,21 +36,22 @@ COPY --from=frontend /frontend/client/build ./client_build
 # Create necessary directories
 RUN mkdir -p /var/lib/mysql /var/log/mysql /var/run/mysqld \
     && mkdir -p /mosquitto/data /mosquitto/log /mosquitto/config \
-    && mkdir -p /app/data /app/logs \
-    && mkdir -p /data/db /data/mqtt /data/app
+    && mkdir -p /app/data /app/logs
 
 # Copy configuration files
 COPY mosquitto.conf /mosquitto/config/mosquitto.conf
 COPY supervisord.ha.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Create database initialization script
-RUN echo "CREATE DATABASE IF NOT EXISTS gym_lockers;" > /docker-entrypoint-initdb.d/init.sql \
+RUN mkdir -p /docker-entrypoint-initdb.d \
+    && echo "CREATE DATABASE IF NOT EXISTS gym_lockers;" > /docker-entrypoint-initdb.d/init.sql \
     && echo "CREATE USER IF NOT EXISTS 'gym_admin'@'localhost' IDENTIFIED BY 'secure_password_123';" >> /docker-entrypoint-initdb.d/init.sql \
     && echo "GRANT ALL PRIVILEGES ON gym_lockers.* TO 'gym_admin'@'localhost';" >> /docker-entrypoint-initdb.d/init.sql \
     && echo "FLUSH PRIVILEGES;" >> /docker-entrypoint-initdb.d/init.sql
 
 # Create MQTT user
-RUN mosquitto_passwd -b /mosquitto/config/passwd gym_mqtt_user mqtt_password_123
+RUN mkdir -p /mosquitto/config \
+    && mosquitto_passwd -c /mosquitto/config/passwd gym_mqtt_user mqtt_password_123
 
 # Set permissions
 RUN chown -R mysql:mysql /var/lib/mysql /var/log/mysql /var/run/mysqld \

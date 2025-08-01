@@ -42,25 +42,29 @@ else
 fi
 
 # Create necessary directories
-mkdir -p /data/db /data/mqtt /data/app /app/logs
+mkdir -p /var/lib/mysql /var/log/mysql /var/run/mysqld
+mkdir -p /mosquitto/data /mosquitto/log /mosquitto/config
+mkdir -p /app/logs /app/data
 
 # Initialize database if it doesn't exist
-if [ ! -f /data/db/mysql ]; then
+if [ ! -f /var/lib/mysql/mysql ]; then
     bashio::log.info "Initializing database..."
-    mysql_install_db --datadir=/data/db --user=mysql
+    mysql_install_db --datadir=/var/lib/mysql --user=mysql
 fi
 
 # Update database password if provided
 if [ "$DB_PASSWORD" != "secure_password_123" ]; then
     bashio::log.info "Updating database password..."
-    mysql -u root -e "ALTER USER 'gym_admin'@'localhost' IDENTIFIED BY '$DB_PASSWORD';"
-    mysql -u root -e "FLUSH PRIVILEGES;"
+    # Wait for MySQL to be ready
+    sleep 5
+    mysql -u root -e "ALTER USER 'gym_admin'@'localhost' IDENTIFIED BY '$DB_PASSWORD';" 2>/dev/null || true
+    mysql -u root -e "FLUSH PRIVILEGES;" 2>/dev/null || true
 fi
 
 # Update MQTT password if provided
 if [ "$MQTT_PASSWORD" != "mqtt_password_123" ]; then
     bashio::log.info "Updating MQTT password..."
-    mosquitto_passwd -b /mosquitto/config/passwd "$MQTT_USERNAME" "$MQTT_PASSWORD"
+    mosquitto_passwd -b /mosquitto/config/passwd "$MQTT_USERNAME" "$MQTT_PASSWORD" 2>/dev/null || true
 fi
 
 # Set environment variables for the application
