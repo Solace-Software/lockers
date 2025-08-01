@@ -2300,6 +2300,14 @@ app.post('/api/test-mqtt', async (req, res) => {
   console.log('🧪 Testing MQTT connection with config:', testConfig);
   
   try {
+    // Validate required fields
+    if (!testConfig.host || !testConfig.port) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Host and port are required for MQTT connection test' 
+      });
+    }
+
     // Create a temporary MQTT client for testing
     const testClient = mqtt.connect(`mqtt://${testConfig.host}:${testConfig.port}`, {
       clientId: `test-${Math.random().toString(16).slice(3)}`,
@@ -2312,12 +2320,20 @@ app.post('/api/test-mqtt', async (req, res) => {
     
     // Wait for connection or error
     await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        testClient.end(true, {}, () => {
+          reject(new Error('Connection timeout - broker may be unreachable'));
+        });
+      }, 5000);
+
       testClient.once('connect', () => {
+        clearTimeout(timeout);
         console.log('✅ Test MQTT connection successful');
         testClient.end(true, {}, () => resolve());
       });
       
       testClient.once('error', (error) => {
+        clearTimeout(timeout);
         console.error('❌ Test MQTT connection failed:', error);
         testClient.end(true, {}, () => reject(error));
       });
@@ -2326,15 +2342,42 @@ app.post('/api/test-mqtt', async (req, res) => {
     res.json({ success: true, message: 'MQTT connection test successful' });
   } catch (error) {
     console.error('❌ MQTT test failed:', error);
-    res.status(500).json({ success: false, message: 'MQTT connection test failed' });
+    
+    let errorMessage = 'MQTT connection test failed';
+    
+    if (error.message.includes('ECONNREFUSED')) {
+      errorMessage = 'Connection refused. Please check if the MQTT broker is running and the host/port are correct.';
+    } else if (error.message.includes('ENOTFOUND')) {
+      errorMessage = 'Host not found. Please check the broker hostname or IP address.';
+    } else if (error.message.includes('timeout')) {
+      errorMessage = 'Connection timeout. The broker may be unreachable or the port is incorrect.';
+    } else if (error.message.includes('ECONNRESET')) {
+      errorMessage = 'Connection reset by broker. Please check authentication credentials.';
+    } else if (error.message.includes('EACCES')) {
+      errorMessage = 'Access denied. Please check username and password credentials.';
+    } else {
+      errorMessage = `Connection failed: ${error.message}`;
+    }
+    
+    res.status(500).json({ success: false, message: errorMessage });
   }
 });
 
 // Send test MQTT message
 app.post('/api/test-mqtt-message', async (req, res) => {
   try {
-    if (!mqttClient || !isConnected) {
-      return res.status(400).json({ success: false, message: 'MQTT client not connected' });
+    if (!mqttClient) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'MQTT client not initialized. Please check server configuration.' 
+      });
+    }
+    
+    if (!isConnected) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'MQTT client not connected. Please establish connection to broker first.' 
+      });
     }
     
     const testMessage = {
@@ -2345,18 +2388,34 @@ app.post('/api/test-mqtt-message', async (req, res) => {
     };
     
     // Publish test message to a test topic
-    mqttClient.publish('test/message', JSON.stringify(testMessage), (err) => {
+    mqttClient.publish('test/message', JSON.stringify(testMessage), { qos: 1 }, (err) => {
       if (err) {
         console.error('❌ Failed to publish test message:', err);
-        res.status(500).json({ success: false, message: 'Failed to publish test message' });
+        let errorMessage = 'Failed to publish test message';
+        
+        if (err.message.includes('ECONNRESET')) {
+          errorMessage = 'Connection lost while publishing. Please check broker connection.';
+        } else if (err.message.includes('ENOTFOUND')) {
+          errorMessage = 'Broker host not found. Please check network connectivity.';
+        } else {
+          errorMessage = `Publish failed: ${err.message}`;
+        }
+        
+        res.status(500).json({ success: false, message: errorMessage });
       } else {
         console.log('📤 Published test MQTT message:', testMessage);
-        res.json({ success: true, message: 'Test MQTT message published' });
+        res.json({ 
+          success: true, 
+          message: 'Test MQTT message published successfully to test/message topic' 
+        });
       }
     });
   } catch (error) {
     console.error('❌ Error publishing test message:', error);
-    res.status(500).json({ success: false, message: 'Error publishing test message' });
+    res.status(500).json({ 
+      success: false, 
+      message: 'Unexpected error while publishing test message' 
+    });
   }
 });
 

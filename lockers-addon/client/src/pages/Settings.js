@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Wifi, 
-  Bell, 
   Settings as SettingsIcon, 
   Save, 
   TestTube, 
@@ -17,6 +16,7 @@ import DashboardHeader from '../components/DashboardHeader';
 import DashboardCard from '../components/DashboardCard';
 import Input from '../components/Input';
 import Button from '../components/Button';
+import Modal from '../components/Modal';
 
 const Settings = () => {
   const { socket, isConnected } = useSocket();
@@ -34,11 +34,7 @@ const Settings = () => {
     websocketPort: 9001
   });
   
-  const [notifications, setNotifications] = useState({
-    emailAlerts: true,
-    usageReports: false,
-    realTimeUpdates: true
-  });
+
   
   const [systemSettings, setSystemSettings] = useState({
     autoRefresh: 30,
@@ -57,6 +53,10 @@ const Settings = () => {
 
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [testConnectionLoading, setTestConnectionLoading] = useState(false);
+  const [testMessageLoading, setTestMessageLoading] = useState(false);
+  const [testResult, setTestResult] = useState(null);
+  const [showTestModal, setShowTestModal] = useState(false);
 
   useEffect(() => {
     // Load settings from API
@@ -68,9 +68,7 @@ const Settings = () => {
         if (settings.mqttConfig) {
           setMqttConfig(settings.mqttConfig);
         }
-        if (settings.notifications) {
-          setNotifications(settings.notifications);
-        }
+
         if (settings.systemSettings) {
           setSystemSettings(settings.systemSettings);
         }
@@ -81,12 +79,10 @@ const Settings = () => {
         
         // Fallback to localStorage if API fails
         const savedMqtt = localStorage.getItem('mqttConfig');
-        const savedNotifications = localStorage.getItem('notifications');
         const savedSystem = localStorage.getItem('systemSettings');
         const savedMqttListener = localStorage.getItem('mqttListener');
 
         if (savedMqtt) setMqttConfig(JSON.parse(savedMqtt));
-        if (savedNotifications) setNotifications(JSON.parse(savedNotifications));
         if (savedSystem) setSystemSettings(JSON.parse(savedSystem));
         if (savedMqttListener) setMqttListener(prev => ({ ...prev, ...JSON.parse(savedMqttListener), messages: [], isListening: false }));
       }
@@ -182,14 +178,13 @@ const Settings = () => {
     setLoading(true);
     try {
       // Save to API
-      const response = await axios.post('/api/settings', { mqttConfig, notifications, systemSettings, mqttListener });
+      const response = await axios.post('/api/settings', { mqttConfig, systemSettings, mqttListener });
       
       if (response.data.success) {
         console.log('✅ Settings saved to API:', response.data);
         
         // Also save to localStorage as backup
         localStorage.setItem('mqttConfig', JSON.stringify(mqttConfig));
-        localStorage.setItem('notifications', JSON.stringify(notifications));
         localStorage.setItem('systemSettings', JSON.stringify(systemSettings));
         localStorage.setItem('mqttListener', JSON.stringify({
           topic: mqttListener.topic,
@@ -207,7 +202,6 @@ const Settings = () => {
       // Fallback to localStorage only
       try {
         localStorage.setItem('mqttConfig', JSON.stringify(mqttConfig));
-        localStorage.setItem('notifications', JSON.stringify(notifications));
         localStorage.setItem('systemSettings', JSON.stringify(systemSettings));
         localStorage.setItem('mqttListener', JSON.stringify({
           topic: mqttListener.topic,
@@ -253,20 +247,81 @@ const Settings = () => {
   };
 
   const testMqttConnection = async () => {
+    setTestConnectionLoading(true);
+    setTestResult(null);
+    
     try {
-      await axios.post('/api/test-mqtt', mqttConfig);
-      alert('MQTT connection test successful!');
+      const response = await axios.post('/api/test-mqtt', mqttConfig);
+      setTestResult({
+        success: true,
+        message: response.data.message || 'MQTT connection test successful!'
+      });
+      setShowTestModal(true);
     } catch (error) {
-      alert('MQTT connection test failed. Please check your configuration.');
+      let errorMessage = 'MQTT connection test failed. Please check your configuration.';
+      
+      if (error.response) {
+        // Server responded with error status
+        if (error.response.data && error.response.data.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.response.status === 500) {
+          errorMessage = 'Connection failed. Please check your broker host, port, and credentials.';
+        } else if (error.response.status === 404) {
+          errorMessage = 'Test endpoint not found. Please check server configuration.';
+        }
+      } else if (error.request) {
+        // Network error
+        errorMessage = 'Network error. Please check your server connection.';
+      } else {
+        // Other error
+        errorMessage = error.message || errorMessage;
+      }
+      
+      setTestResult({
+        success: false,
+        message: errorMessage
+      });
+      setShowTestModal(true);
+    } finally {
+      setTestConnectionLoading(false);
     }
   };
 
   const testMqttMessage = async () => {
+    setTestMessageLoading(true);
+    setTestResult(null);
+    
     try {
-      await axios.post('/api/test-mqtt-message');
-      alert('Test MQTT message sent! Check the message listener.');
+      const response = await axios.post('/api/test-mqtt-message');
+      setTestResult({
+        success: true,
+        message: response.data.message || 'Test MQTT message sent! Check the message listener.'
+      });
+      setShowTestModal(true);
     } catch (error) {
-      alert('Failed to send test MQTT message. Make sure MQTT is connected.');
+      let errorMessage = 'Failed to send test MQTT message. Make sure MQTT is connected.';
+      
+      if (error.response) {
+        if (error.response.data && error.response.data.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.response.status === 400) {
+          errorMessage = 'MQTT client not connected. Please establish connection first.';
+        } else if (error.response.status === 500) {
+          errorMessage = 'Failed to publish message. Please check MQTT broker connection.';
+        }
+      } else if (error.request) {
+        errorMessage = 'Network error. Please check your server connection.';
+      } else {
+        errorMessage = error.message || errorMessage;
+      }
+      
+      setTestResult({
+        success: false,
+        message: errorMessage
+      });
+      setShowTestModal(true);
+    } finally {
+      setTestMessageLoading(false);
     }
   };
 
@@ -380,9 +435,23 @@ const Settings = () => {
               />
             </div>
 
-            <Button variant="secondary" className="w-full flex items-center justify-center space-x-2" onClick={testMqttConnection}>
-              <TestTube className="w-4 h-4" />
-              <span>Test Broker Connection</span>
+            <Button 
+              variant="secondary" 
+              className="w-full flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed" 
+              onClick={testMqttConnection}
+              disabled={testConnectionLoading}
+            >
+              {testConnectionLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
+                  <span>Testing Connection...</span>
+                </>
+              ) : (
+                <>
+                  <TestTube className="w-4 h-4" />
+                  <span>Test Broker Connection</span>
+                </>
+              )}
             </Button>
           </div>
         </DashboardCard>
@@ -464,11 +533,21 @@ const Settings = () => {
               <div className="pt-2">
                 <Button
                   variant="outline"
-                  className="w-full flex items-center justify-center space-x-2 text-sm"
+                  className="w-full flex items-center justify-center space-x-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={testMqttMessage}
+                  disabled={testMessageLoading}
                 >
-                  <TestTube className="w-4 h-4" />
-                  <span>Send Test MQTT Message</span>
+                  {testMessageLoading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
+                      <span>Sending Message...</span>
+                    </>
+                  ) : (
+                    <>
+                      <TestTube className="w-4 h-4" />
+                      <span>Send Test MQTT Message</span>
+                    </>
+                  )}
                 </Button>
               </div>
 
@@ -526,63 +605,7 @@ const Settings = () => {
           </div>
         </DashboardCard>
 
-        {/* Notifications */}
-        <DashboardCard>
-          <div className="flex items-center space-x-3 mb-6">
-            <Bell className="w-6 h-6 text-cyan-400" />
-            <h3 className="text-lg font-semibold text-white">Notifications</h3>
-          </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-white">Email Alerts</p>
-                <p className="text-xs text-cyan-200">Receive email notifications for important events</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={notifications.emailAlerts}
-                  onChange={(e) => setNotifications({ ...notifications, emailAlerts: e.target.checked })}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-              </label>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-white">Usage Reports</p>
-                <p className="text-xs text-cyan-200">Weekly usage summary reports</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={notifications.usageReports}
-                  onChange={(e) => setNotifications({ ...notifications, usageReports: e.target.checked })}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-              </label>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-white">Real-time Updates</p>
-                <p className="text-xs text-cyan-200">Live updates via WebSocket</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={notifications.realTimeUpdates}
-                  onChange={(e) => setNotifications({ ...notifications, realTimeUpdates: e.target.checked })}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-              </label>
-            </div>
-          </div>
-        </DashboardCard>
 
         {/* System Settings */}
         <DashboardCard>
@@ -729,6 +752,41 @@ const Settings = () => {
           <span>{loading ? 'Saving...' : saved ? 'Saved!' : 'Save Settings'}</span>
         </Button>
       </div>
+
+      {/* Test Result Modal */}
+      <Modal 
+        open={showTestModal} 
+        onClose={() => setShowTestModal(false)}
+        className="max-w-md"
+      >
+        <div className="text-center">
+          <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${
+            testResult?.success ? 'bg-green-100' : 'bg-red-100'
+          }`}>
+            {testResult?.success ? (
+              <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+            ) : (
+              <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+            )}
+          </div>
+          <h3 className={`text-lg font-semibold mb-2 ${
+            testResult?.success ? 'text-green-800' : 'text-red-800'
+          }`}>
+            {testResult?.success ? 'Test Successful' : 'Test Failed'}
+          </h3>
+          <p className="text-gray-600 mb-4">
+            {testResult?.message}
+          </p>
+        </div>
+      </Modal>
     </div>
   );
 };

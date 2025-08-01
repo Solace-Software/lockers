@@ -1,0 +1,68 @@
+# Multi-stage build for Home Assistant Addon All-in-One
+FROM node:18 AS frontend
+WORKDIR /frontend
+COPY client/package*.json ./client/
+RUN cd client && npm install
+COPY client ./client
+RUN cd client && npm run build
+
+# Main Home Assistant addon stage
+FROM ghcr.io/hassio-addons/base:14.0.0
+
+# Install system dependencies
+RUN apk add --no-cache \
+    mariadb \
+    mariadb-client \
+    mosquitto \
+    mosquitto-clients \
+    supervisor \
+    bash \
+    curl \
+    && rm -rf /var/cache/apk/*
+
+# Create application directory
+WORKDIR /app
+
+# Copy package files and install dependencies
+COPY package*.json ./
+RUN npm install --production
+
+# Copy application files
+COPY . .
+
+# Copy frontend build
+COPY --from=frontend /frontend/client/build ./client_build
+
+# Create necessary directories
+RUN mkdir -p /var/lib/mysql /var/log/mysql /var/run/mysqld \
+    && mkdir -p /mosquitto/data /mosquitto/log /mosquitto/config \
+    && mkdir -p /app/data /app/logs \
+    && mkdir -p /data/db /data/mqtt /data/app
+
+# Copy configuration files
+COPY mosquitto.conf /mosquitto/config/mosquitto.conf
+COPY supervisord.ha.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Create database initialization script
+RUN echo "CREATE DATABASE IF NOT EXISTS gym_lockers;" > /docker-entrypoint-initdb.d/init.sql \
+    && echo "CREATE USER IF NOT EXISTS 'gym_admin'@'localhost' IDENTIFIED BY 'secure_password_123';" >> /docker-entrypoint-initdb.d/init.sql \
+    && echo "GRANT ALL PRIVILEGES ON gym_lockers.* TO 'gym_admin'@'localhost';" >> /docker-entrypoint-initdb.d/init.sql \
+    && echo "FLUSH PRIVILEGES;" >> /docker-entrypoint-initdb.d/init.sql
+
+# Create MQTT user
+RUN mosquitto_passwd -b /mosquitto/config/passwd gym_mqtt_user mqtt_password_123
+
+# Set permissions
+RUN chown -R mysql:mysql /var/lib/mysql /var/log/mysql /var/run/mysqld \
+    && chown -R mosquitto:mosquitto /mosquitto \
+    && chmod -R 755 /app
+
+# Copy run script
+COPY run.sh /
+RUN chmod a+x /run.sh
+
+# Expose ports
+EXPOSE 3001 1883 9001 3306
+
+# Start all services with supervisor
+CMD [ "/run.sh" ] 

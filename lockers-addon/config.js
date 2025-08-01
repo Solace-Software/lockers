@@ -65,7 +65,34 @@ const mqttConfig = {
   port: addonConfig.mqtt_port ? parseInt(addonConfig.mqtt_port) : 1883,
   username: addonConfig.mqtt_username || undefined,
   password: addonConfig.mqtt_password || undefined,
-  clientId: addonConfig.mqtt_client_id || `gym-admin-${Math.random().toString(16).slice(3)}`
+  clientId: addonConfig.mqtt_client_id || `gym-admin-${Math.random().toString(16).slice(3)}`,
+  websocketPort: addonConfig.mqtt_websocket_port ? parseInt(addonConfig.mqtt_websocket_port) : 9001,
+  allowAnonymous: addonConfig.mqtt_allow_anonymous !== undefined ? addonConfig.mqtt_allow_anonymous : true,
+  maxConnections: addonConfig.mqtt_max_connections ? parseInt(addonConfig.mqtt_max_connections) : 100,
+  maxMessageSize: addonConfig.mqtt_max_message_size ? parseInt(addonConfig.mqtt_max_message_size) : 1024
+};
+
+// System settings
+const systemSettings = {
+  autoRefresh: addonConfig.system_auto_refresh ? parseInt(addonConfig.system_auto_refresh) : 30,
+  dataRetention: addonConfig.system_data_retention_days ? parseInt(addonConfig.system_data_retention_days) : 90,
+  backupEnabled: addonConfig.system_backup_enabled !== undefined ? addonConfig.system_backup_enabled : true,
+  debugMode: addonConfig.system_debug_mode !== undefined ? addonConfig.system_debug_mode : false
+};
+
+// Notification settings
+const notificationSettings = {
+  emailAlerts: addonConfig.notifications_email_alerts !== undefined ? addonConfig.notifications_email_alerts : true,
+  usageReports: addonConfig.notifications_usage_reports !== undefined ? addonConfig.notifications_usage_reports : false,
+  realTimeUpdates: addonConfig.notifications_real_time_updates !== undefined ? addonConfig.notifications_real_time_updates : true
+};
+
+// Security settings
+const securitySettings = {
+  sessionTimeout: addonConfig.security_session_timeout ? parseInt(addonConfig.security_session_timeout) : 30,
+  passwordPolicy: addonConfig.security_password_policy || 'standard',
+  twoFactorAuth: addonConfig.security_two_factor_auth !== undefined ? addonConfig.security_two_factor_auth : false,
+  auditLogging: addonConfig.security_audit_logging !== undefined ? addonConfig.security_audit_logging : true
 };
 
 // Debug: Print configurations
@@ -80,9 +107,30 @@ console.log('MQTT_PORT:', mqttConfig.port);
 console.log('MQTT_USERNAME:', mqttConfig.username || 'undefined');
 console.log('MQTT_PASSWORD:', mqttConfig.password ? '***' : 'undefined');
 console.log('MQTT_CLIENT_ID:', mqttConfig.clientId);
+console.log('MQTT_WEBSOCKET_PORT:', mqttConfig.websocketPort);
+console.log('MQTT_ALLOW_ANONYMOUS:', mqttConfig.allowAnonymous);
+console.log('MQTT_MAX_CONNECTIONS:', mqttConfig.maxConnections);
+console.log('MQTT_MAX_MESSAGE_SIZE:', mqttConfig.maxMessageSize);
+
+console.log('SYSTEM_AUTO_REFRESH:', systemSettings.autoRefresh);
+console.log('SYSTEM_DATA_RETENTION:', systemSettings.dataRetention);
+console.log('SYSTEM_BACKUP_ENABLED:', systemSettings.backupEnabled);
+console.log('SYSTEM_DEBUG_MODE:', systemSettings.debugMode);
+
+console.log('NOTIFICATIONS_EMAIL_ALERTS:', notificationSettings.emailAlerts);
+console.log('NOTIFICATIONS_USAGE_REPORTS:', notificationSettings.usageReports);
+console.log('NOTIFICATIONS_REAL_TIME_UPDATES:', notificationSettings.realTimeUpdates);
+
+console.log('SECURITY_SESSION_TIMEOUT:', securitySettings.sessionTimeout);
+console.log('SECURITY_PASSWORD_POLICY:', securitySettings.passwordPolicy);
+console.log('SECURITY_TWO_FACTOR_AUTH:', securitySettings.twoFactorAuth);
+console.log('SECURITY_AUDIT_LOGGING:', securitySettings.auditLogging);
 
 module.exports = {
   dbConfig,
   mqttConfig,
+  systemSettings,
+  notificationSettings,
+  securitySettings,
   addonConfig
 }; 
