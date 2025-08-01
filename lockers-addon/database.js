@@ -120,7 +120,7 @@ class Database {
     // First create the table if it doesn't exist
     const createTableQuery = `
       CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
+        id INT AUTO_INCREMENT PRIMARY KEY,
         username VARCHAR(100) UNIQUE,
         email VARCHAR(255) UNIQUE NOT NULL,
         password_hash VARCHAR(255),
@@ -129,126 +129,130 @@ class Database {
         last_name VARCHAR(100),
         phone VARCHAR(20),
         is_active BOOLEAN DEFAULT true,
-        last_login TIMESTAMP,
+        last_login TIMESTAMP NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       );
     `;
     await conn.query(createTableQuery);
 
-    // Add missing columns if they don't exist
-    const addColumnsQuery = `
-      DO $$ 
-      BEGIN 
-        -- Add gym_id column if it doesn't exist
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'gym_id') THEN
-          ALTER TABLE users ADD COLUMN gym_id VARCHAR(50);
-        END IF;
-        -- Add rfid_tag column if it doesn't exist
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'rfid_tag') THEN
-          ALTER TABLE users ADD COLUMN rfid_tag VARCHAR(100);
-        END IF;
-        -- Add locker_id column if it doesn't exist
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'locker_id') THEN
-          ALTER TABLE users ADD COLUMN locker_id INTEGER REFERENCES lockers(id) ON DELETE SET NULL;
-        END IF;
-        -- Add valid_until column if it doesn't exist
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'valid_until') THEN
-          ALTER TABLE users ADD COLUMN valid_until TIMESTAMP;
-        END IF;
-      END $$;
-    `;
-    await conn.query(addColumnsQuery);
+    // Add missing columns if they don't exist (MariaDB compatible)
+    const columnsToAdd = [
+      { name: 'gym_id', type: 'VARCHAR(50)' },
+      { name: 'rfid_tag', type: 'VARCHAR(100)' },
+      { name: 'locker_id', type: 'INT' },
+      { name: 'valid_until', type: 'TIMESTAMP NULL' }
+    ];
+
+    for (const column of columnsToAdd) {
+      const checkColumnQuery = `
+        SELECT COUNT(*) as count 
+        FROM information_schema.columns 
+        WHERE table_name = 'users' 
+        AND column_name = '${column.name}'
+      `;
+      const [result] = await conn.query(checkColumnQuery);
+      
+      if (result[0].count === 0) {
+        const addColumnQuery = `ALTER TABLE users ADD COLUMN ${column.name} ${column.type}`;
+        await conn.query(addColumnQuery);
+        console.log(`✅ Added column: ${column.name}`);
+      }
+    }
 
     // Add unique constraint on rfid_tag if it doesn't exist
-    const addUniqueConstraintQuery = `
-      DO $$ 
-      BEGIN 
-        IF NOT EXISTS (
-          SELECT 1 FROM pg_constraint 
-          WHERE conname = 'users_rfid_tag_unique'
-        ) THEN
-          ALTER TABLE users ADD CONSTRAINT users_rfid_tag_unique UNIQUE (rfid_tag);
-        END IF;
-      END $$;
+    const checkConstraintQuery = `
+      SELECT COUNT(*) as count 
+      FROM information_schema.table_constraints 
+      WHERE table_name = 'users' 
+      AND constraint_name = 'users_rfid_tag_unique'
     `;
-    await conn.query(addUniqueConstraintQuery);
-
-    // Drop NOT NULL constraints if they exist
-    const dropConstraintsQuery = `
-      DO $$ 
-      BEGIN 
-        -- Drop NOT NULL constraint on username if it exists
-        IF EXISTS (
-          SELECT 1 FROM information_schema.columns 
-          WHERE table_name = 'users' 
-          AND column_name = 'username' 
-          AND is_nullable = 'NO'
-        ) THEN
-          ALTER TABLE users ALTER COLUMN username DROP NOT NULL;
-        END IF;
-        
-        -- Drop NOT NULL constraint on password_hash if it exists
-        IF EXISTS (
-          SELECT 1 FROM information_schema.columns 
-          WHERE table_name = 'users' 
-          AND column_name = 'password_hash' 
-          AND is_nullable = 'NO'
-        ) THEN
-          ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
-        END IF;
-      END $$;
-    `;
-    await conn.query(dropConstraintsQuery);
+    const [constraintResult] = await conn.query(checkConstraintQuery);
+    
+    if (constraintResult[0].count === 0) {
+      const addUniqueConstraintQuery = `
+        ALTER TABLE users ADD CONSTRAINT users_rfid_tag_unique UNIQUE (rfid_tag)
+      `;
+      await conn.query(addUniqueConstraintQuery);
+      console.log('✅ Added unique constraint on rfid_tag');
+    }
 
     // Create indexes if they don't exist
-    const createIndexesQuery = `
-      CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
-      CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-      CREATE INDEX IF NOT EXISTS idx_users_gym_id ON users(gym_id);
-      CREATE INDEX IF NOT EXISTS idx_users_rfid_tag ON users(rfid_tag);
-    `;
-    await conn.query(createIndexesQuery);
+    const indexesToCreate = [
+      'idx_users_username ON users(username)',
+      'idx_users_email ON users(email)',
+      'idx_users_gym_id ON users(gym_id)',
+      'idx_users_rfid_tag ON users(rfid_tag)'
+    ];
+
+    for (const index of indexesToCreate) {
+      try {
+        const createIndexQuery = `CREATE INDEX ${index}`;
+        await conn.query(createIndexQuery);
+        console.log(`✅ Created index: ${index}`);
+      } catch (error) {
+        // Index might already exist, which is fine
+        if (!error.message.includes('Duplicate key name')) {
+          console.log(`⚠️ Index creation skipped: ${index}`);
+        }
+      }
+    }
   }
 
   async createLockersTable(conn) {
     const query = `
       CREATE TABLE IF NOT EXISTS lockers (
-        id SERIAL PRIMARY KEY,
+        id INT AUTO_INCREMENT PRIMARY KEY,
         locker_id VARCHAR(100) UNIQUE NOT NULL,
         name VARCHAR(255) NOT NULL,
         location VARCHAR(255),
         status VARCHAR(50) DEFAULT 'available',
-        ip_address INET,
+        ip_address VARCHAR(45),
         topic VARCHAR(255),
-        num_locks INTEGER DEFAULT 1,
+        num_locks INT DEFAULT 1,
         api_token VARCHAR(255),
         controller_type VARCHAR(100),
-        last_heartbeat TIMESTAMP,
-        uptime INTEGER DEFAULT 0,
+        last_heartbeat TIMESTAMP NULL,
+        uptime INT DEFAULT 0,
         is_online BOOLEAN DEFAULT false,
-        user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-        last_used TIMESTAMP,
-        metadata JSONB DEFAULT '{}',
+        user_id INT,
+        last_used TIMESTAMP NULL,
+        metadata JSON,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       );
-      
-      CREATE INDEX IF NOT EXISTS idx_lockers_locker_id ON lockers(locker_id);
-      CREATE INDEX IF NOT EXISTS idx_lockers_status ON lockers(status);
     `;
     await conn.query(query);
+
+    // Create indexes
+    const indexesToCreate = [
+      'idx_lockers_locker_id ON lockers(locker_id)',
+      'idx_lockers_status ON lockers(status)'
+    ];
+
+    for (const index of indexesToCreate) {
+      try {
+        const createIndexQuery = `CREATE INDEX ${index}`;
+        await conn.query(createIndexQuery);
+        console.log(`✅ Created index: ${index}`);
+      } catch (error) {
+        // Index might already exist, which is fine
+        if (!error.message.includes('Duplicate key name')) {
+          console.log(`⚠️ Index creation skipped: ${index}`);
+        }
+      }
+    }
   }
 
   async createGroupsTable(conn) {
     const query = `
       CREATE TABLE IF NOT EXISTS locker_groups (
-        id SERIAL PRIMARY KEY,
+        id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         description TEXT,
         color VARCHAR(7) DEFAULT '#3B82F6',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       );
     `;
     await conn.query(query);
@@ -257,11 +261,11 @@ class Database {
   async createGroupLockersTable(conn) {
     const query = `
       CREATE TABLE IF NOT EXISTS group_lockers (
-        id SERIAL PRIMARY KEY,
-        group_id INTEGER REFERENCES locker_groups(id) ON DELETE CASCADE,
-        locker_id INTEGER REFERENCES lockers(id) ON DELETE CASCADE,
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        group_id INT,
+        locker_id INT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(group_id, locker_id)
+        UNIQUE KEY unique_group_locker (group_id, locker_id)
       );
     `;
     await conn.query(query);
@@ -270,12 +274,12 @@ class Database {
   async createSettingsTable(conn) {
     const query = `
       CREATE TABLE IF NOT EXISTS settings (
-        id SERIAL PRIMARY KEY,
+        id INT AUTO_INCREMENT PRIMARY KEY,
         key VARCHAR(255) UNIQUE NOT NULL,
-        value JSONB NOT NULL,
+        value JSON,
         description TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
       );
     `;
     await conn.query(query);
@@ -284,39 +288,71 @@ class Database {
   async createLogsTable(conn) {
     const query = `
       CREATE TABLE IF NOT EXISTS activity_logs (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-        locker_id INTEGER REFERENCES lockers(id) ON DELETE CASCADE,
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT,
+        locker_id INT,
         action VARCHAR(100) NOT NULL,
-        details JSONB DEFAULT '{}',
-        ip_address INET,
+        details JSON,
+        ip_address VARCHAR(45),
         user_agent TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-      
-      CREATE INDEX IF NOT EXISTS idx_logs_action ON activity_logs(action);
-      CREATE INDEX IF NOT EXISTS idx_logs_created ON activity_logs(created_at);
     `;
     await conn.query(query);
+
+    // Create indexes
+    const indexesToCreate = [
+      'idx_logs_action ON activity_logs(action)',
+      'idx_logs_created ON activity_logs(created_at)'
+    ];
+
+    for (const index of indexesToCreate) {
+      try {
+        const createIndexQuery = `CREATE INDEX ${index}`;
+        await conn.query(createIndexQuery);
+        console.log(`✅ Created index: ${index}`);
+      } catch (error) {
+        // Index might already exist, which is fine
+        if (!error.message.includes('Duplicate key name')) {
+          console.log(`⚠️ Index creation skipped: ${index}`);
+        }
+      }
+    }
   }
 
   async createMqttMessagesTable(conn) {
     const query = `
       CREATE TABLE IF NOT EXISTS mqtt_messages (
-        id SERIAL PRIMARY KEY,
+        id INT AUTO_INCREMENT PRIMARY KEY,
         topic VARCHAR(500) NOT NULL,
-        payload JSONB,
-        qos INTEGER DEFAULT 0,
+        payload JSON,
+        qos INT DEFAULT 0,
         retain BOOLEAN DEFAULT false,
-        locker_id INTEGER REFERENCES lockers(id) ON DELETE CASCADE,
+        locker_id INT,
         processed BOOLEAN DEFAULT false,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
-      
-      CREATE INDEX IF NOT EXISTS idx_mqtt_topic ON mqtt_messages(topic);
-      CREATE INDEX IF NOT EXISTS idx_mqtt_created ON mqtt_messages(created_at);
     `;
     await conn.query(query);
+
+    // Create indexes
+    const indexesToCreate = [
+      'idx_mqtt_topic ON mqtt_messages(topic)',
+      'idx_mqtt_created ON mqtt_messages(created_at)'
+    ];
+
+    for (const index of indexesToCreate) {
+      try {
+        const createIndexQuery = `CREATE INDEX ${index}`;
+        await conn.query(createIndexQuery);
+        console.log(`✅ Created index: ${index}`);
+      } catch (error) {
+        // Index might already exist, which is fine
+        if (!error.message.includes('Duplicate key name')) {
+          console.log(`⚠️ Index creation skipped: ${index}`);
+        }
+      }
+    }
   }
 
   async query(sql, params = []) {
@@ -374,7 +410,6 @@ class Database {
     const query = `
       INSERT INTO users (username, email, password_hash, role, first_name, last_name, gym_id, phone, rfid_tag, locker_id, valid_until)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      RETURNING *
     `;
     const result = await this.query(query, [
       username || null, 
@@ -389,13 +424,16 @@ class Database {
       locker_id || null,
       valid_until || null
     ]);
-    return result.rows[0];
+    
+    // Get the inserted user
+    const userId = result[0].insertId;
+    return await this.getUserById(userId);
   }
 
   async getAllUsers() {
     const query = 'SELECT * FROM users ORDER BY created_at DESC';
     const result = await this.query(query);
-    return result.rows;
+    return result[0];
   }
 
   async updateUser(id, userData) {
@@ -404,23 +442,23 @@ class Database {
     const query = `
       UPDATE users 
       SET ${fields}, updated_at = CURRENT_TIMESTAMP 
-      WHERE id = ? 
-      RETURNING *
+      WHERE id = ?
     `;
-    const result = await this.query(query, [id, ...values]);
-    return result.rows[0];
+    await this.query(query, [...values, id]);
+    return await this.getUserById(id);
   }
 
   async deleteUser(id) {
-    const query = 'DELETE FROM users WHERE id = ? RETURNING *';
-    const result = await this.query(query, [id]);
-    return result.rows[0];
+    const user = await this.getUserById(id);
+    const query = 'DELETE FROM users WHERE id = ?';
+    await this.query(query, [id]);
+    return user;
   }
 
   async getUserById(id) {
     const query = 'SELECT * FROM users WHERE id = ?';
     const result = await this.query(query, [id]);
-    return result.rows[0];
+    return result[0][0];
   }
 
   async getUserLogs(userId) {
@@ -436,13 +474,13 @@ class Database {
       LIMIT 100
     `;
     const result = await this.query(query, [userId]);
-    return result.rows;
+    return result[0];
   }
 
   async getUserByRfidTag(rfidTag) {
     const query = 'SELECT * FROM users WHERE rfid_tag = ?';
     const result = await this.query(query, [rfidTag]);
-    return result.rows[0];
+    return result[0][0];
   }
 
   async isRfidTagAvailable(rfidTag, excludeUserId = null) {
@@ -455,7 +493,7 @@ class Database {
     }
     
     const result = await this.query(query, params);
-    return result.rows.length === 0;
+    return result[0].length === 0;
   }
 
   // Locker methods
@@ -464,28 +502,30 @@ class Database {
     const query = `
       INSERT INTO lockers (locker_id, name, location, status, ip_address, topic, num_locks, api_token, controller_type, metadata)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      RETURNING *
     `;
     const result = await this.query(query, [locker_id, name, location, status, ip_address, topic, num_locks, api_token, controller_type, JSON.stringify(metadata)]);
-    return result.rows[0];
+    
+    // Get the inserted locker
+    const lockerId = result[0].insertId;
+    return await this.getLockerById(lockerId);
   }
 
   async getAllLockers() {
     const query = 'SELECT * FROM lockers ORDER BY created_at DESC';
     const result = await this.query(query);
-    return result.rows;
+    return result[0];
   }
 
   async getLockerByLockerId(lockerId) {
     const query = 'SELECT * FROM lockers WHERE locker_id = ?';
     const result = await this.query(query, [lockerId]);
-    return result.rows[0];
+    return result[0][0];
   }
 
   async getLockerById(id) {
     const query = 'SELECT * FROM lockers WHERE id = ?';
     const result = await this.query(query, [id]);
-    return result.rows[0];
+    return result[0][0];
   }
 
   async updateLocker(id, lockerData) {
@@ -494,28 +534,27 @@ class Database {
     const query = `
       UPDATE lockers 
       SET ${fields}, updated_at = CURRENT_TIMESTAMP 
-      WHERE id = ? 
-      RETURNING *
+      WHERE id = ?
     `;
-    const result = await this.query(query, [id, ...values]);
-    return result.rows[0];
+    await this.query(query, [...values, id]);
+    return await this.getLockerById(id);
   }
 
   async updateLockerHeartbeat(lockerId, heartbeatData) {
     const query = `
       UPDATE lockers 
       SET uptime = ?, ip_address = ?, last_heartbeat = CURRENT_TIMESTAMP, is_online = true, updated_at = CURRENT_TIMESTAMP 
-      WHERE locker_id = ? 
-      RETURNING *
+      WHERE locker_id = ?
     `;
-    const result = await this.query(query, [lockerId, heartbeatData.uptime, heartbeatData.ip_address]);
-    return result.rows[0];
+    await this.query(query, [heartbeatData.uptime, heartbeatData.ip_address, lockerId]);
+    return await this.getLockerByLockerId(lockerId);
   }
 
   async deleteLocker(id) {
-    const query = 'DELETE FROM lockers WHERE id = ? RETURNING *';
-    const result = await this.query(query, [id]);
-    return result.rows[0];
+    const locker = await this.getLockerById(id);
+    const query = 'DELETE FROM lockers WHERE id = ?';
+    await this.query(query, [id]);
+    return locker;
   }
 
   // Add getLockerGroup method
@@ -527,7 +566,7 @@ class Database {
       WHERE gl.locker_id = ?
     `;
     const result = await this.query(query, [lockerId]);
-    return result.rows[0] || null;
+    return result[0][0] || null;
   }
 
   // Group methods
