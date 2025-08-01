@@ -35,7 +35,7 @@ services:
 
   # Gym Locker Dashboard
   gym-locker-dashboard:
-    build: .
+    image: gym-locker-dashboard:latest
     container_name: gym-locker-dashboard
     restart: unless-stopped
     ports:
