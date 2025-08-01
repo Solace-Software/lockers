@@ -275,7 +275,7 @@ class Database {
     const query = `
       CREATE TABLE IF NOT EXISTS settings (
         id INT AUTO_INCREMENT PRIMARY KEY,
-        key VARCHAR(255) UNIQUE NOT NULL,
+        \`key\` VARCHAR(255) UNIQUE NOT NULL,
         value JSON,
         description TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -578,10 +578,9 @@ class Database {
       const groupQuery = `
         INSERT INTO locker_groups (name, description, color)
         VALUES (?, ?, ?)
-        RETURNING *
       `;
       const groupResult = await conn.query(groupQuery, [name, description, color]);
-      const group = groupResult.rows[0];
+      const groupId = groupResult[0].insertId;
       
       // Add lockers to the group if provided
       if (locker_ids.length > 0) {
@@ -589,11 +588,12 @@ class Database {
           INSERT INTO group_lockers (group_id, locker_id)
           VALUES ${locker_ids.map((_, i) => `(?, ?)`).join(', ')}
         `;
-        await conn.query(lockerQuery, [group.id, ...locker_ids]);
+        await conn.query(lockerQuery, [groupId, ...locker_ids]);
       }
       
-      // Return group with locker_ids
-      return { ...group, locker_ids };
+      // Get the created group
+      const group = await this.getGroupById(groupId);
+      return group;
     });
   }
 
@@ -601,34 +601,28 @@ class Database {
     const query = `
       SELECT 
         lg.*,
-        COALESCE(
-          json_agg(gl.locker_id) FILTER (WHERE gl.locker_id IS NOT NULL),
-          '[]'::json
-        ) as locker_ids
+        JSON_ARRAYAGG(gl.locker_id) as locker_ids
       FROM locker_groups lg
       LEFT JOIN group_lockers gl ON lg.id = gl.group_id
       GROUP BY lg.id
       ORDER BY lg.created_at DESC
     `;
     const result = await this.query(query);
-    return result.rows;
+    return result[0];
   }
 
   async getGroupById(id) {
     const query = `
       SELECT 
         lg.*,
-        COALESCE(
-          json_agg(gl.locker_id) FILTER (WHERE gl.locker_id IS NOT NULL),
-          '[]'::json
-        ) as locker_ids
+        JSON_ARRAYAGG(gl.locker_id) as locker_ids
       FROM locker_groups lg
       LEFT JOIN group_lockers gl ON lg.id = gl.group_id
       WHERE lg.id = ?
       GROUP BY lg.id
     `;
     const result = await this.query(query, [id]);
-    return result.rows[0];
+    return result[0][0];
   }
 
   async updateGroup(id, groupData) {
@@ -637,8 +631,7 @@ class Database {
     return await this.transaction(async (conn) => {
       // Update group info
       const fields = [];
-      const values = [id];
-      let paramIndex = 2;
+      const values = [];
       
       if (name !== undefined) {
         fields.push(`name = ?`);
@@ -653,14 +646,14 @@ class Database {
         values.push(color);
       }
       
-      const updateQuery = `
-        UPDATE locker_groups 
-        SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP 
-        WHERE id = ? 
-        RETURNING *
-      `;
-      const groupResult = await conn.query(updateQuery, values);
-      const group = groupResult.rows[0];
+      if (fields.length > 0) {
+        const updateQuery = `
+          UPDATE locker_groups 
+          SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP 
+          WHERE id = ?
+        `;
+        await conn.query(updateQuery, [...values, id]);
+      }
       
       // Update locker associations if provided
       if (locker_ids !== undefined) {
@@ -677,41 +670,41 @@ class Database {
         }
       }
       
-      return { ...group, locker_ids: locker_ids || [] };
+      return await this.getGroupById(id);
     });
   }
 
   async deleteGroup(id) {
-    const query = 'DELETE FROM locker_groups WHERE id = ? RETURNING *';
-    const result = await this.query(query, [id]);
-    return result.rows[0];
+    const group = await this.getGroupById(id);
+    const query = 'DELETE FROM locker_groups WHERE id = ?';
+    await this.query(query, [id]);
+    return group;
   }
 
   // Settings methods
   async getAllSettings() {
-    const query = 'SELECT * FROM settings ORDER BY key';
+    const query = 'SELECT * FROM settings ORDER BY `key`';
     const result = await this.query(query);
-    return result.rows;
+    return result[0];
   }
 
   async setSetting(key, value, description = null) {
     const query = `
-      INSERT INTO settings (key, value, description)
+      INSERT INTO settings (\`key\`, value, description)
       VALUES (?, ?, ?)
-      ON CONFLICT (key) DO UPDATE SET
-        value = EXCLUDED.value,
-        description = EXCLUDED.description,
+      ON DUPLICATE KEY UPDATE
+        value = VALUES(value),
+        description = VALUES(description),
         updated_at = CURRENT_TIMESTAMP
-      RETURNING *
     `;
-    const result = await this.query(query, [key, JSON.stringify(value), description]);
-    return result.rows[0];
+    await this.query(query, [key, JSON.stringify(value), description]);
+    return await this.getSetting(key);
   }
 
   async getSetting(key) {
-    const query = 'SELECT * FROM settings WHERE key = ?';
+    const query = 'SELECT * FROM settings WHERE `key` = ?';
     const result = await this.query(query, [key]);
-    return result.rows[0];
+    return result[0][0];
   }
 
   // Activity logging
@@ -736,10 +729,9 @@ class Database {
     const query = `
       INSERT INTO activity_logs (user_id, locker_id, action, details, ip_address, user_agent)
       VALUES (?, ?, ?, ?, ?, ?)
-      RETURNING *
     `;
     const result = await this.query(query, [cleanUserId, locker_id, action, JSON.stringify(details), ip_address, user_agent]);
-    return result.rows[0];
+    return { id: result[0].insertId };
   }
 
   // MQTT message storage
@@ -748,10 +740,9 @@ class Database {
     const query = `
       INSERT INTO mqtt_messages (topic, payload, qos, retain, locker_id)
       VALUES (?, ?, ?, ?, ?)
-      RETURNING *
     `;
     const result = await this.query(query, [topic, JSON.stringify(payload), qos, retain, locker_id]);
-    return result.rows[0];
+    return { id: result[0].insertId };
   }
 }
 
