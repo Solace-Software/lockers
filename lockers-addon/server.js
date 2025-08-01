@@ -21,7 +21,7 @@ app.use(cors(corsOptions));
 
 // Middleware
 app.use(express.json());
-// app.use(express.static(path.join(__dirname, 'client/build'))); // Disabled for development
+app.use(express.static(path.join(__dirname, 'client/build'))); // Enable static file serving
 
 // MQTT Configuration - Dynamic settings from API
 let mqttConfig = {
@@ -1970,10 +1970,14 @@ async function startServer() {
     // Load system settings
     try {
       const settings = await db.getAllSettings();
+      console.log('📋 Found settings in database:', settings.length);
+      
       if (settings.length > 0) {
         settings.forEach(setting => {
+          console.log(`🔧 Loading setting: ${setting.key}`);
           if (setting.key === 'mqttConfig' && setting.value) {
             systemSettings.mqttConfig = { ...systemSettings.mqttConfig, ...setting.value };
+            console.log('✅ MQTT config loaded:', systemSettings.mqttConfig);
           } else if (setting.key === 'notifications' && setting.value) {
             systemSettings.notifications = setting.value;
           } else if (setting.key === 'systemSettings' && setting.value) {
@@ -1982,8 +1986,10 @@ async function startServer() {
         });
       }
       console.log('⚙️  System settings loaded from database');
+      console.log('🔌 Current MQTT config:', systemSettings.mqttConfig);
     } catch (error) {
-      console.log('⚠️  Using default system settings (database settings not found)');
+      console.log('⚠️  Using default system settings (database settings not found):', error.message);
+      console.log('🔌 Default MQTT config:', systemSettings.mqttConfig);
     }
     
     // Create HTTP server
@@ -2367,7 +2373,11 @@ app.put('/api/users/:id', async (req, res) => {
 
 // --- MQTT Status API Endpoint ---
 app.get('/api/status', (req, res) => {
-  res.json({ mqtt: mqttStatus });
+  res.json({ 
+    mqtt: mqttStatus,
+    config: systemSettings.mqttConfig,
+    connected: isConnected
+  });
 });
 
 // Ensure graceful shutdown always closes MQTT client
