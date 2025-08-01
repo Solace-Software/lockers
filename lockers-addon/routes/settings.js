@@ -16,11 +16,26 @@ module.exports = function(db, systemSettings, connectMQTT) {
       if (settings.length > 0) {
         settings.forEach(setting => {
           if (setting.key === 'mqttConfig' && setting.value) {
-            response.mqttConfig = setting.value;
+            try {
+              response.mqttConfig = JSON.parse(setting.value);
+            } catch (e) {
+              console.error('Error parsing mqttConfig:', e);
+              response.mqttConfig = setting.value;
+            }
           } else if (setting.key === 'notifications' && setting.value) {
-            response.notifications = setting.value;
+            try {
+              response.notifications = JSON.parse(setting.value);
+            } catch (e) {
+              console.error('Error parsing notifications:', e);
+              response.notifications = setting.value;
+            }
           } else if (setting.key === 'systemSettings' && setting.value) {
-            response.systemSettings = setting.value;
+            try {
+              response.systemSettings = JSON.parse(setting.value);
+            } catch (e) {
+              console.error('Error parsing systemSettings:', e);
+              response.systemSettings = setting.value;
+            }
           }
         });
       }

@@ -2057,11 +2057,12 @@ async function startServer() {
 }
 
 // Signal handlers for graceful shutdown
+// Global shutdown flag
+let isShuttingDown = false;
+
 const signals = ['SIGTERM', 'SIGINT', 'SIGUSR2', 'SIGBREAK'];
 
 signals.forEach(signal => {
-  let isShuttingDown = false;
-  
   process.on(signal, async () => {
     console.log(`🛑 Received ${signal}, shutting down gracefully...`);
     
@@ -2378,6 +2379,11 @@ app.get('/api/status', (req, res) => {
     config: systemSettings.mqttConfig,
     connected: isConnected
   });
+});
+
+// Catch-all route for client-side routing
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'client/build/index.html'));
 });
 
 // Ensure graceful shutdown always closes MQTT client
