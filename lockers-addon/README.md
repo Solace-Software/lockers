@@ -4,7 +4,14 @@ A comprehensive locker management system with MQTT integration for gym facilitie
 
 ## Version History
 
-### v1.1.2 (Latest)
+### v1.1.3 (Latest)
+- **Fixed Docker container networking**: Added proper Home Assistant container name resolution
+- **Fixed MQTT connection issues**: Updated configuration to use core-mosquitto instead of localhost
+- **Fixed database connection issues**: Updated configuration to use core-mariadb instead of localhost
+- **Added HA-specific configuration**: Created ha-config.json for Home Assistant environment
+- **Improved container communication**: Better integration with Home Assistant addon ecosystem
+
+### v1.1.2
 - **Fixed 503 Service Unavailable error**: Fixed static file serving and React app routing
 - **Improved Docker container compatibility**: Fixed client_build vs client/build path issues
 - **Enhanced static file serving**: Added support for both development and production paths

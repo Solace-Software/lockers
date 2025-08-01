@@ -1,0 +1,12 @@
+{
+  "db_host": "core-mariadb",
+  "db_port": 3306,
+  "db_user": "solace",
+  "db_password": "solace123",
+  "db_name": "gym_lockers",
+  "mqtt_host": "core-mosquitto",
+  "mqtt_port": 1883,
+  "mqtt_username": "",
+  "mqtt_password": "",
+  "mqtt_client_id": "gym-admin"
+} 

@@ -16,7 +16,19 @@ function getAddonConfig() {
   }
   
   try {
-    // Try to read from local config file
+    // Try to read from HA-specific config file (for Home Assistant environment)
+    const haConfigPath = path.join(__dirname, 'ha-config.json');
+    if (fs.existsSync(haConfigPath)) {
+      const config = JSON.parse(fs.readFileSync(haConfigPath, 'utf8'));
+      console.log('📋 Loaded configuration from HA config file');
+      return config;
+    }
+  } catch (error) {
+    console.log('⚠️ Could not read HA config file:', error.message);
+  }
+  
+  try {
+    // Try to read from local config file (for development)
     const localConfigPath = path.join(__dirname, 'local-config.json');
     if (fs.existsSync(localConfigPath)) {
       const config = JSON.parse(fs.readFileSync(localConfigPath, 'utf8'));
