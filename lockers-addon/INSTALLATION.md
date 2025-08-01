@@ -1,8 +1,14 @@
 # Home Assistant Addon Installation Guide
 
-## Version 1.1.0 Update
+## Version 1.1.1 Update
 
 This update includes critical MQTT stability improvements that prevent server crashes from message floods.
+
+### What's New in v1.1.1
+- **Fixed Home Assistant addon web UI access**: Enabled ingress and proper routing
+- **Improved addon integration**: Better Home Assistant compatibility
+- **Fixed web UI URL format**: Added proper trailing slash and ingress entry
+- **Enhanced deployment**: Streamlined installation process
 
 ### What's New in v1.1.0
 - **Fixed MQTT message flood issue**: Changed from wildcard subscription (`#`) to specific topic subscriptions
@@ -15,7 +21,7 @@ This update includes critical MQTT stability improvements that prevent server cr
 
 ### Option 1: Upload via Home Assistant UI (Recommended)
 
-1. **Download the addon archive**: `gym-locker-dashboard-1.1.0.tar.gz`
+1. **Download the addon archive**: `gym-locker-dashboard-1.1.1.tar.gz`
 2. **Go to Home Assistant**: Navigate to Settings → Add-ons → Add-on Store
 3. **Upload the archive**: Click the three dots menu → "Upload Add-on"
 4. **Select the file**: Choose `gym-locker-dashboard-1.1.0.tar.gz`
@@ -28,7 +34,7 @@ This update includes critical MQTT stability improvements that prevent server cr
 1. **Copy the archive** to your Home Assistant instance
 2. **SSH into Home Assistant** or use the Terminal addon
 3. **Navigate to addons directory**: `cd /addons/local/`
-4. **Extract the archive**: `tar -xzf gym-locker-dashboard-1.1.0.tar.gz`
+4. **Extract the archive**: `tar -xzf gym-locker-dashboard-1.1.1.tar.gz`
 5. **Restart Home Assistant** or reload the addon store
 6. **Install via UI**: The addon should now appear in your local addons
 
