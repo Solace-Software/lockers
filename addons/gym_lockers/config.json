@@ -1,8 +1,8 @@
 {
-  "name": "Gym Lockers Management System",
+  "name": "Gym Lockers Management System V2",
   "version": "2.0.0",
-  "slug": "gym_lockers",
-  "description": "A management system for gym lockers with MQTT support",
+  "slug": "gym_lockers_v2",
+  "description": "A management system for gym lockers with MQTT support (Version 2)",
   "url": "https://github.com/Solace-Software/lockers",
   "arch": ["amd64"],
   "init": false,

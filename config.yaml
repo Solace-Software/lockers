@@ -1,6 +1,6 @@
 channel: stable
 addons:
-  gym_lockers:
+  gym_lockers_v2:
     repository: Solace-Software/lockers
     target: addons/gym_lockers
-    image: "{arch}-addon-gym_lockers"
+    image: "{arch}-addon-gym_lockers_v2"

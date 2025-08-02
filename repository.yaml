@@ -1,5 +1,4 @@
-name: "Gym Locker Add-ons"
+name: "Gym Locker Add-ons V2"
 url: "https://github.com/Solace-Software/lockers"
 maintainer: "Solace Software"
-slug: "gym_lockers_repository"
-version: "2.0.0"
+slug: "gym_lockers_repository_v2"
