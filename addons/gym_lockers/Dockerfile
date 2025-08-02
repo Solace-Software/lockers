@@ -1,20 +1,20 @@
-ARG BUILD_FROM=homeassistant/amd64-base:latest
-FROM ${BUILD_FROM}
+FROM homeassistant/amd64-base-python:3.11-alpine3.19
 
 # Set shell
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Install system dependencies
-RUN apk add --no-cache \
-    nodejs \
-    npm \
-    mariadb \
-    mariadb-client \
-    mosquitto \
-    mosquitto-clients \
-    supervisor \
-    bash \
-    curl \
+RUN \
+    apk add --no-cache \
+        nodejs \
+        npm \
+        mariadb \
+        mariadb-client \
+        mosquitto \
+        mosquitto-clients \
+        supervisor \
+        bash \
+        curl \
     && rm -rf /var/cache/apk/*
 
 # Create application directory

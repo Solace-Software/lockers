@@ -5,32 +5,9 @@
   "description": "A management system for gym lockers with MQTT support",
   "url": "https://github.com/Solace-Software/lockers",
   "arch": ["amd64"],
-  "startup": "system",
+  "init": false,
+  "startup": "application",
   "boot": "auto",
-  "host_network": true,
-  "privileged": ["SYS_ADMIN"],
-  "full_access": true,
-  "apparmor": false,
-  "hassio_api": true,
-  "hassio_role": "default",
-  "services": ["mysql:want"],
-  "map": ["share:rw", "config:rw"],
-  "panel_icon": "mdi:locker",
-  "panel_title": "Gym Lockers",
-  "ingress": true,
-  "ingress_port": 3001,
-  "panel_admin": true,
-  "webui": "http://[HOST]:[PORT:3001]",
-  "ports": {
-    "3001/tcp": 3001,
-    "1883/tcp": 1883,
-    "9001/tcp": 9001
-  },
-  "ports_description": {
-    "3001/tcp": "Web interface",
-    "1883/tcp": "MQTT broker",
-    "9001/tcp": "MQTT WebSocket"
-  },
   "options": {
     "database": {
       "host": "",
@@ -76,5 +53,15 @@
       "data_retention": "int(1,365)",
       "debug_mode": "bool"
     }
+  },
+  "ports": {
+    "3001/tcp": 3001,
+    "1883/tcp": 1883,
+    "9001/tcp": 9001
+  },
+  "ports_description": {
+    "3001/tcp": "Web interface",
+    "1883/tcp": "MQTT broker",
+    "9001/tcp": "MQTT WebSocket"
   }
 }
