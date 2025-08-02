@@ -1,257 +1,104 @@
-# Gym Locker Admin Dashboard
+# Home Assistant Add-on: Gym Lockers Management System
 
-A modern admin dashboard for managing MQTT-based gym lockers with real-time monitoring, user management, and analytics.
+[![Release][release-shield]][release] ![Project Stage][project-stage-shield] ![Project Maintenance][maintenance-shield]
 
-## Version History
+A comprehensive management system for gym lockers with MQTT support.
 
-### v1.1.4 (Latest)
-- **Removed all hardcoded credentials**: Implemented secure configuration system
-- **Added Home Assistant addon configuration priority**: Uses /data/options.json for secure credential storage
-- **Enhanced security**: No hardcoded credentials in codebase
-- **Added comprehensive security documentation**: SECURE_INSTALLATION.md with proper configuration guide
-- **Updated Docker deployment**: Uses environment variables for secure credential management
-- **Improved configuration system**: Priority order: addon config → environment variables → empty defaults
+## About
 
-### v1.1.3
-- **Fixed Docker container networking**: Added proper Home Assistant container name resolution
-- **Fixed MQTT connection issues**: Updated configuration to use core-mosquitto instead of localhost
-- **Fixed database connection issues**: Updated configuration to use core-mariadb instead of localhost
-- **Added HA-specific configuration**: Created ha-config.json for Home Assistant environment
-- **Improved container communication**: Better integration with Home Assistant addon ecosystem
+This Home Assistant add-on provides a complete solution for managing gym lockers. It includes:
 
-### v1.1.2
-- **Fixed 503 Service Unavailable error**: Fixed static file serving and React app routing
-- **Improved Docker container compatibility**: Fixed client_build vs client/build path issues
-- **Enhanced static file serving**: Added support for both development and production paths
-- **Better error handling**: Added proper fallbacks for missing frontend files
-
-### v1.1.1
-- **Fixed Home Assistant addon web UI access**: Enabled ingress and proper routing
-- **Improved addon integration**: Better Home Assistant compatibility
-- **Fixed web UI URL format**: Added proper trailing slash and ingress entry
-- **Enhanced deployment**: Streamlined installation process
-
-### v1.1.0
-- **Fixed MQTT message flood issue**: Changed from wildcard subscription (`#`) to specific topic subscriptions
-- **Added message filtering**: Implemented topic-based filtering to prevent processing irrelevant messages
-- **Added message size limits**: Prevent processing of large messages (like image data) that could cause memory issues
-- **Improved stability**: Server no longer crashes from overwhelming MQTT traffic
-- **Enhanced performance**: Reduced memory usage and improved response times
-
-### v1.0.0
-- Initial release with basic locker management functionality
+- Web-based management interface
 - MQTT integration for real-time updates
-- RFID tag management and user assignment
-- Web-based dashboard interface
+- Built-in database for storing locker and user information
+- Real-time status monitoring
+- User management
+- Group management
+- Analytics and reporting
 
 ## Features
 
-- 🔒 **Real-time Locker Management** - Monitor and control lockers via MQTT
-- 👥 **User Management** - Manage gym members and locker assignments
-- 📊 **Analytics Dashboard** - Usage statistics and performance metrics
-- ⚙️ **System Settings** - MQTT configuration and system preferences
-- 🔄 **Live Updates** - Real-time status updates via WebSocket
-- 📱 **Responsive Design** - Works on desktop and mobile devices
-
-## Tech Stack
-
-### Backend
-- **Node.js** with Express.js
-- **MQTT** for IoT communication
-- **Socket.IO** for real-time updates
-- **CORS** for cross-origin requests
-
-### Frontend
-- **React 18** with functional components
-- **Tailwind CSS** for styling
-- **Recharts** for data visualization
-- **Lucide React** for icons
-- **Axios** for API calls
-
-## Prerequisites
-
-- Node.js (v16 or higher)
-- npm or yarn
-- MQTT Broker (optional for testing)
+- 🔒 Secure locker management
+- 📊 Real-time analytics
+- 👥 User and group management
+- 🔔 MQTT notifications
+- 🌐 Web-based interface
+- 🔐 Integration with Home Assistant
 
 ## Installation
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd gym-locker-admin-dashboard
-   ```
+1. Navigate to your Home Assistant instance
+2. Go to Settings -> Add-ons -> Add-on Store
+3. Click the 3-dots menu at top right -> Repositories
+4. Add this repository URL: `https://github.com/YourUsername/lockers`
+5. The add-on will show up in the store. Click install!
 
-2. **Install backend dependencies**
-   ```bash
-   npm install
-   ```
+## Configuration
 
-3. **Install frontend dependencies**
-   ```bash
-   cd client
-   npm install
-   cd ..
-   ```
+The add-on can be configured via the Home Assistant UI:
 
-4. **Configure environment variables**
-   Create a `.env` file in the root directory:
-   ```env
-   MQTT_HOST=localhost
-   MQTT_PORT=1883
-   MQTT_USERNAME=your_username
-   MQTT_PASSWORD=your_password
-   PORT=5000
-   NODE_ENV=development
-   ```
-
-## Running the Application
-
-### Development Mode
-
-1. **Start the backend server**
-   ```bash
-   npm run server
-   ```
-   The server will start on http://localhost:5000
-
-2. **Start the frontend development server**
-   ```bash
-   cd client
-   npm start
-   ```
-   The React app will start on http://localhost:3000
-
-### Production Mode
-
-1. **Build the frontend**
-   ```bash
-   cd client
-   npm run build
-   cd ..
-   ```
-
-2. **Start the production server**
-   ```bash
-   npm start
-   ```
-
-## MQTT Topics
-
-The system uses the following MQTT topics:
-
-- `gym/lockers/{lockerId}/status` - Locker status updates
-- `gym/lockers/{lockerId}/command` - Commands sent to lockers
-- `gym/lockers/{lockerId}/response` - Responses from lockers
-
-### Example MQTT Messages
-
-**Status Update:**
-```json
-{
-  "status": "occupied",
-  "userId": "user-123",
-  "timestamp": "2024-01-15T10:30:00Z"
-}
+```yaml
+database:
+  host: ""  # Leave empty for internal database
+  port: 3306
+  name: "gym_lockers"
+  username: ""
+  password: ""
+mqtt:
+  use_internal: true  # Use built-in MQTT broker
+  external:  # Only needed if use_internal is false
+    host: ""
+    port: 1883
+    username: ""
+    password: ""
+system:
+  auto_refresh: 30  # Data refresh interval in seconds
+  data_retention: 90  # Days to keep historical data
+  debug_mode: false
 ```
-
-**Command:**
-```json
-{
-  "command": "unlock",
-  "timestamp": "2024-01-15T10:30:00Z"
-}
-```
-
-## API Endpoints
-
-### Lockers
-- `GET /api/lockers` - Get all lockers
-- `POST /api/lockers` - Create a new locker
-- `PUT /api/lockers/:id` - Update a locker
-- `DELETE /api/lockers/:id` - Delete a locker
-- `POST /api/lockers/:id/command` - Send command to locker
-
-### Users
-- `GET /api/users` - Get all users
-- `POST /api/users` - Create a new user
-- `PUT /api/users/:id` - Update a user
-- `DELETE /api/users/:id` - Delete a user
-
-### Analytics
-- `GET /api/analytics/usage` - Get usage statistics
-
-## Project Structure
-
-```
-gym-locker-admin-dashboard/
-├── server.js                 # Main server file
-├── package.json             # Backend dependencies
-├── .env                     # Environment variables
-├── client/                  # React frontend
-│   ├── public/
-│   │   ├── components/      # Reusable components
-│   │   ├── pages/          # Page components
-│   │   ├── contexts/       # React contexts
-│   │   └── index.js        # App entry point
-│   └── package.json        # Frontend dependencies
-└── README.md
-```
-
-## Features in Detail
-
-### Dashboard
-- Real-time overview of all lockers
-- Utilization statistics
-- Quick actions for common tasks
-- Live status updates
-
-### Locker Management
-- Add, edit, and delete lockers
-- Send commands (lock, unlock, maintenance)
-- Filter by status and search functionality
-- Real-time status monitoring
-
-### User Management
-- Manage gym members
-- Assign lockers to users
-- Track membership types
-- User activity history
-
-### Analytics
-- Usage trends and patterns
-- Performance metrics
-- Location-based statistics
-- Export capabilities
-
-### Settings
-- MQTT configuration
-- Notification preferences
-- System preferences
-- Security settings
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## License
-
-MIT License - see LICENSE file for details
 
 ## Support
 
-For support and questions, please open an issue on GitHub.
+Got questions?
 
----
+You have several options to get them answered:
 
-**Note:** This is a demo application. For production use, consider adding:
-- Database integration (PostgreSQL, MongoDB)
-- Authentication and authorization
-- SSL/TLS encryption
-- Rate limiting
-- Logging and monitoring
-- Backup and recovery procedures 
+- The [Home Assistant Discord Chat Server][discord]
+- The Home Assistant [Community Forum][forum]
+- Join the [Reddit subreddit][reddit] in [/r/homeassistant][reddit]
+
+## Contributing
+
+This is an active open-source project. Feel free to use the issue tracker to report any issues or suggest improvements!
+
+## License
+
+MIT License
+
+Copyright (c) 2024 Your Name
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+[discord]: https://discord.gg/c5DvZ4e
+[forum]: https://community.home-assistant.io
+[maintenance-shield]: https://img.shields.io/maintenance/yes/2024.svg
+[project-stage-shield]: https://img.shields.io/badge/project%20stage-stable-green.svg
+[release-shield]: https://img.shields.io/badge/version-v1.2.6-blue.svg
+[release]: https://github.com/YourUsername/lockers/tree/v1.2.6
+[reddit]: https://reddit.com/r/homeassistant
