@@ -257,26 +257,5 @@ export SYSTEM_DEBUG_MODE="$SYSTEM_DEBUG_MODE"
 # Start supervisor to manage all services
 bashio::log.info "Starting supervisor..."
 
-# Start supervisor in background to allow debugging
-/usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf &
-
-# Wait for supervisor to start
-sleep 3
-
-# Check if MariaDB is starting
-bashio::log.info "Checking MariaDB status..."
-supervisorctl status mariadb
-
-# Wait a bit more for MariaDB to fully start
-sleep 10
-
-# Check MariaDB status again
-bashio::log.info "Checking MariaDB status after startup..."
-supervisorctl status mariadb
-
-# Test database connection
-bashio::log.info "Testing database connection..."
-mysql -u gym_admin -psecure_password_123 -h localhost -e "SELECT 1;" 2>/dev/null && echo "✅ Database connection successful" || echo "❌ Database connection failed"
-
-# Keep the script running
-wait 
+# Start supervisor in foreground
+exec /usr/bin/supervisord -n -c /etc/supervisor/conf.d/supervisord.conf 
