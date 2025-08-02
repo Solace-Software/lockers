@@ -2,15 +2,15 @@
   "name": "Gym Lockers Management System",
   "version": "1.2.6",
   "slug": "gym_lockers",
-  "boot": "auto",
-  "host_network": true,
-  "apparmor": true,
   "description": "A management system for gym lockers with MQTT support",
   "url": "https://github.com/Solace-Software/lockers",
   "arch": ["armhf", "armv7", "aarch64", "amd64", "i386"],
-  "startup": "services",
+  "startup": "application",
+  "boot": "auto",
+  "host_network": true,
+  "apparmor": true,
   "init": false,
-  "stage": "stable",
+  "map": ["share:rw", "config:rw"],
   "hassio_api": true,
   "hassio_role": "default",
   "services": ["mysql:want"],
@@ -55,11 +55,11 @@
   },
   "schema": {
     "database": {
-      "host": "str",
-      "port": "port",
+      "host": "str?",
+      "port": "port?",
       "name": "str",
-      "username": "str",
-      "password": "password"
+      "username": "str?",
+      "password": "password?"
     },
     "mqtt": {
       "use_internal": "bool",

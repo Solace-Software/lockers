@@ -22,16 +22,16 @@ RUN \
 WORKDIR /app
 
 # Copy package files and install dependencies
-COPY gym_lockers/package*.json ./
+COPY ../../gym_lockers/package*.json ./
 RUN npm install --production
 
 # Copy application files
-COPY gym_lockers/client ./client
-COPY gym_lockers/src ./src
-COPY gym_lockers/routes ./routes
-COPY gym_lockers/server.js ./
-COPY gym_lockers/database.js ./
-COPY gym_lockers/init-data.js ./
+COPY ../../gym_lockers/client ./client
+COPY ../../gym_lockers/src ./src
+COPY ../../gym_lockers/routes ./routes
+COPY ../../gym_lockers/server.js ./
+COPY ../../gym_lockers/database.js ./
+COPY ../../gym_lockers/init-data.js ./
 
 # Copy root filesystem
 COPY rootfs /
@@ -42,7 +42,7 @@ RUN \
         /data/gym-lockers/database \
         /data/gym-lockers/mqtt \
         /data/gym-lockers/logs \
-    && chown -R abc:abc \
+    && chown -R root:root \
         /data/gym-lockers
 
 # Build frontend
@@ -51,6 +51,9 @@ RUN cd client && npm install && npm run build
 # Set permissions
 RUN chmod a+x /etc/cont-init.d/* && \
     chmod a+x /etc/services.d/gym-lockers/*
+
+# Set S6 Overlay entrypoint
+ENTRYPOINT ["/init"]
 
 # Labels
 LABEL \
