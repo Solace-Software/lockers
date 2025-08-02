@@ -89,7 +89,7 @@ startretries=3
 stdout_logfile=/app/logs/app.log
 stderr_logfile=/app/logs/app.error.log
 priority=300
-environment=DB_HOST=localhost,DB_PORT=3306,DB_USER=gym_admin,DB_PASSWORD=secure_password_123,DB_NAME=gym_lockers,MQTT_HOST=localhost,MQTT_PORT=1883,MQTT_USERNAME=gym_mqtt_user,MQTT_PASSWORD=mqtt_password_123,MQTT_CLIENT_ID=gym-admin-ha-addon
+environment=DB_HOST=localhost,DB_PORT=3306,DB_USER=gym_admin,DB_PASSWORD=secure_password_123,DB_NAME=gym_lockers,MQTT_HOST=localhost,MQTT_PORT=1884,MQTT_USERNAME=gym_mqtt_user,MQTT_PASSWORD=mqtt_password_123,MQTT_CLIENT_ID=gym-admin-ha-addon
 
 [eventlistener:processes]
 command=bash -c "while true; do sleep 30; done"
@@ -136,7 +136,7 @@ if [ "$USE_EXTERNAL_MQTT" = "true" ] && [ -n "$EXTERNAL_MQTT_HOST" ]; then
 else
     bashio::log.info "Using built-in MQTT broker"
     export MQTT_HOST=localhost
-    export MQTT_PORT=1883
+    export MQTT_PORT=1884
     export MQTT_USERNAME="gym_mqtt_user"
     export MQTT_PASSWORD="mqtt_password_123"
     export MQTT_CLIENT_ID="gym-admin-ha-addon"
