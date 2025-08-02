@@ -59,11 +59,11 @@ RUN chown -R mysql:mysql /var/lib/mysql /var/log/mysql /var/run/mysqld \
     && chmod -R 755 /app
 
 # Copy run script
-COPY run.sh /
+COPY run.sh /run.sh
 RUN chmod a+x /run.sh
 
 # Expose ports
 EXPOSE 3001 9001 3306
 
 # Start all services with supervisor
-CMD [ "/run.sh" ] 
+ENTRYPOINT ["/run.sh"] 
