@@ -58,11 +58,11 @@ LABEL \
     io.hass.description="A management system for gym lockers with MQTT support" \
     io.hass.type="addon" \
     io.hass.version="${BUILD_VERSION}" \
-    maintainer="Your Name <your.email@example.com>" \
+    maintainer="Solace Software <support@solace-software.com>" \
     org.opencontainers.image.title="Gym Lockers Management System" \
     org.opencontainers.image.description="A management system for gym lockers with MQTT support" \
-    org.opencontainers.image.vendor="Your Name" \
-    org.opencontainers.image.authors="Your Name <your.email@example.com>" \
+    org.opencontainers.image.vendor="Solace Software" \
+    org.opencontainers.image.authors="Solace Software <support@solace-software.com>" \
     org.opencontainers.image.licenses="MIT" \
     org.opencontainers.image.url="https://github.com/Solace-Software/lockers" \
     org.opencontainers.image.source="https://github.com/Solace-Software/lockers" \

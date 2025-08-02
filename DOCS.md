@@ -2,11 +2,34 @@
 
 ## Installation
 
-The installation of this add-on is straightforward and easy to do.
+Follow these steps to install the add-on:
 
-1. Navigate in your Home Assistant frontend to **Settings** -> **Add-ons** -> **Add-on Store**.
-2. Click the 3-dots menu at top right -> **Repositories**
-3. Add this repository URL: `https://github.com/YourUsername/lockers`
+1. Navigate to your Home Assistant instance
+2. Go to Settings -> Add-ons -> Add-on Store
+3. Click the 3-dots menu at top right -> Repositories
+4. Add this repository URL: `https://github.com/Solace-Software/lockers`
+5. Click "Add"
+6. Find the "Gym Lockers Management System" add-on and click it
+7. Click "Install"
+
+## Network Requirements
+
+The add-on requires the following ports to be available:
+- 3001/tcp: Web interface
+- 1883/tcp: MQTT broker (if using internal)
+- 9001/tcp: MQTT WebSocket (if using internal)
+
+## Configuration
+
+**Minimum required configuration:**
+```yaml
+database:
+  host: ""  # Leave empty for internal database
+mqtt:
+  use_internal: true
+system:
+  auto_refresh: 30
+```
 4. Find the "Gym Lockers Management System" add-on and click it.
 5. Click on the "INSTALL" button.
 
