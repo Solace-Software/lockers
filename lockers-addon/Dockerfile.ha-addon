@@ -65,7 +65,10 @@ RUN chown -R mysql:mysql /var/lib/mysql /var/log/mysql /var/run/mysqld \
 # Copy run script and make it the entrypoint
 COPY run.sh /usr/local/bin/run.sh
 RUN chmod a+x /usr/local/bin/run.sh && \
-    rm -f /usr/local/bin/docker-entrypoint.sh
+    rm -f /usr/local/bin/docker-entrypoint.sh && \
+    rm -f /usr/bin/docker-entrypoint.sh && \
+    rm -f /bin/docker-entrypoint.sh && \
+    ln -s /usr/local/bin/run.sh /usr/local/bin/docker-entrypoint.sh
 
 # Expose ports
 EXPOSE 3001 9001 3306
