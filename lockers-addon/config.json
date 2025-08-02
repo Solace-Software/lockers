@@ -1,22 +1,21 @@
 {
-  "name": "Solace Technologies - Lockers",
-  "version": "1.3.8",
-  "slug": "gym_locker_dashboard_all_in_one",
-  "description": "Complete gym locker management system with integrated MQTT broker and database. Option to use external MQTT broker. Built-in MQTT is internal only (no external port binding). Everything in one addon - no external dependencies required.",
+  "name": "Gym Locker Admin Dashboard",
+  "version": "1.4.1",
+  "slug": "gym_locker_dashboard",
+  "description": "Complete gym locker management system with internal database and optional MQTT configuration. No external dependencies required - everything runs internally.",
   "repository": "https://github.com/Solace-Software/lockers",
   "startup": "services",
   "boot": "auto",
   "webui": "http://[HOST]:[PORT:3001]/",
   "ports": {
-    "3001/tcp": 3001,
-    "9001/tcp": 9001,
-    "3306/tcp": 3306
+    "3001/tcp": 3001
   },
   "ingress": true,
   "ingress_entry": "/",
   "panel_icon": "mdi:lock",
   "arch": ["amd64", "armv7", "aarch64"],
   "options": {
+    "mqtt_enabled": false,
     "use_external_mqtt": false,
     "external_mqtt_host": "",
     "external_mqtt_port": 1883,
@@ -24,9 +23,19 @@
     "external_mqtt_password": "",
     "external_mqtt_client_id": "gym-admin-external",
     "system_auto_refresh": 30,
-    "system_debug_mode": false
+    "system_data_retention_days": 90,
+    "system_backup_enabled": true,
+    "system_debug_mode": false,
+    "notifications_email_alerts": true,
+    "notifications_usage_reports": false,
+    "notifications_real_time_updates": true,
+    "security_session_timeout": 30,
+    "security_password_policy": "standard",
+    "security_two_factor_auth": false,
+    "security_audit_logging": true
   },
   "schema": {
+    "mqtt_enabled": "bool",
     "use_external_mqtt": "bool",
     "external_mqtt_host": "str",
     "external_mqtt_port": "int(1,65535)",
@@ -34,7 +43,16 @@
     "external_mqtt_password": "str",
     "external_mqtt_client_id": "str",
     "system_auto_refresh": "int(5,300)",
-    "system_debug_mode": "bool"
+    "system_data_retention_days": "int(1,3650)",
+    "system_backup_enabled": "bool",
+    "system_debug_mode": "bool",
+    "notifications_email_alerts": "bool",
+    "notifications_usage_reports": "bool",
+    "notifications_real_time_updates": "bool",
+    "security_session_timeout": "int(5,480)",
+    "security_password_policy": "list(standard|strong|enterprise)",
+    "security_two_factor_auth": "bool",
+    "security_audit_logging": "bool"
   },
   "map": [
     "data:rw"
@@ -43,8 +61,6 @@
     "DB_HOST": "localhost",
     "DB_PORT": "3306",
     "DB_USER": "gym_admin",
-    "DB_NAME": "gym_lockers",
-    "MQTT_HOST": "localhost",
-    "MQTT_PORT": "1884"
+    "DB_NAME": "gym_lockers"
   }
 } 

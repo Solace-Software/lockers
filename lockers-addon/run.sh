@@ -13,6 +13,7 @@ if bashio::fs.file_exists "${CONFIG_PATH}"; then
     CONFIG=$(cat "${CONFIG_PATH}")
     
     # Extract configuration values
+    MQTT_ENABLED=$(bashio::jq "${CONFIG}" '.mqtt_enabled // false')
     USE_EXTERNAL_MQTT=$(bashio::jq "${CONFIG}" '.use_external_mqtt // false')
     EXTERNAL_MQTT_HOST=$(bashio::jq "${CONFIG}" '.external_mqtt_host // ""')
     EXTERNAL_MQTT_PORT=$(bashio::jq "${CONFIG}" '.external_mqtt_port // 1883')
@@ -20,9 +21,19 @@ if bashio::fs.file_exists "${CONFIG_PATH}"; then
     EXTERNAL_MQTT_PASSWORD=$(bashio::jq "${CONFIG}" '.external_mqtt_password // ""')
     EXTERNAL_MQTT_CLIENT_ID=$(bashio::jq "${CONFIG}" '.external_mqtt_client_id // "gym-admin-external"')
     SYSTEM_AUTO_REFRESH=$(bashio::jq "${CONFIG}" '.system_auto_refresh // 30')
+    SYSTEM_DATA_RETENTION_DAYS=$(bashio::jq "${CONFIG}" '.system_data_retention_days // 90')
+    SYSTEM_BACKUP_ENABLED=$(bashio::jq "${CONFIG}" '.system_backup_enabled // true')
     SYSTEM_DEBUG_MODE=$(bashio::jq "${CONFIG}" '.system_debug_mode // false')
+    NOTIFICATIONS_EMAIL_ALERTS=$(bashio::jq "${CONFIG}" '.notifications_email_alerts // true')
+    NOTIFICATIONS_USAGE_REPORTS=$(bashio::jq "${CONFIG}" '.notifications_usage_reports // false')
+    NOTIFICATIONS_REAL_TIME_UPDATES=$(bashio::jq "${CONFIG}" '.notifications_real_time_updates // true')
+    SECURITY_SESSION_TIMEOUT=$(bashio::jq "${CONFIG}" '.security_session_timeout // 30')
+    SECURITY_PASSWORD_POLICY=$(bashio::jq "${CONFIG}" '.security_password_policy // "standard"')
+    SECURITY_TWO_FACTOR_AUTH=$(bashio::jq "${CONFIG}" '.security_two_factor_auth // false')
+    SECURITY_AUDIT_LOGGING=$(bashio::jq "${CONFIG}" '.security_audit_logging // true')
 else
     bashio::log.warning "No configuration file found, using defaults"
+    MQTT_ENABLED=false
     USE_EXTERNAL_MQTT=false
     EXTERNAL_MQTT_HOST=""
     EXTERNAL_MQTT_PORT=1883
@@ -30,7 +41,16 @@ else
     EXTERNAL_MQTT_PASSWORD=""
     EXTERNAL_MQTT_CLIENT_ID="gym-admin-external"
     SYSTEM_AUTO_REFRESH=30
+    SYSTEM_DATA_RETENTION_DAYS=90
+    SYSTEM_BACKUP_ENABLED=true
     SYSTEM_DEBUG_MODE=false
+    NOTIFICATIONS_EMAIL_ALERTS=true
+    NOTIFICATIONS_USAGE_REPORTS=false
+    NOTIFICATIONS_REAL_TIME_UPDATES=true
+    SECURITY_SESSION_TIMEOUT=30
+    SECURITY_PASSWORD_POLICY="standard"
+    SECURITY_TWO_FACTOR_AUTH=false
+    SECURITY_AUDIT_LOGGING=true
 fi
 
 # Create necessary directories
@@ -38,8 +58,29 @@ mkdir -p /var/lib/mysql /var/log/mysql /var/run/mysqld
 mkdir -p /mosquitto/data /mosquitto/log /mosquitto/config
 mkdir -p /app/logs /app/data
 
-# Configure Mosquitto based on external MQTT setting
-if [ "$USE_EXTERNAL_MQTT" = "true" ] && [ -n "$EXTERNAL_MQTT_HOST" ]; then
+# Configure Mosquitto based on MQTT enabled setting
+if [ "$MQTT_ENABLED" = "false" ]; then
+    bashio::log.info "MQTT is disabled - application will run without MQTT connectivity"
+    # Create a minimal Mosquitto config that doesn't bind to any port
+    cat > /mosquitto/config/mosquitto.conf << EOF
+# Mosquitto MQTT Broker Configuration (Disabled)
+persistence true
+persistence_location /mosquitto/data/
+log_dest file /mosquitto/log/mosquitto.log
+log_dest stdout
+
+# Allow anonymous connections (for development)
+allow_anonymous true
+
+# No listeners - MQTT is disabled
+# listener 1884 127.0.0.1
+# protocol mqtt
+
+# WebSocket support (optional)
+listener 9001
+protocol websockets
+EOF
+elif [ "$USE_EXTERNAL_MQTT" = "true" ] && [ -n "$EXTERNAL_MQTT_HOST" ]; then
     bashio::log.info "External MQTT enabled - disabling built-in MQTT broker"
     # Create a minimal Mosquitto config that doesn't bind to any port
     cat > /mosquitto/config/mosquitto.conf << EOF
@@ -89,8 +130,8 @@ environment=HOME="/var/lib/mysql"
 
 EOF
 
-# Add MQTT configuration only if not using external MQTT
-if [ "$USE_EXTERNAL_MQTT" != "true" ]; then
+# Add MQTT configuration only if MQTT is enabled and not using external MQTT
+if [ "$MQTT_ENABLED" = "true" ] && [ "$USE_EXTERNAL_MQTT" != "true" ]; then
     cat >> /etc/supervisor/conf.d/supervisord.conf << EOF
 [program:mosquitto]
 command=/usr/sbin/mosquitto -c /mosquitto/config/mosquitto.conf
@@ -156,9 +197,14 @@ export DB_USER=gym_admin
 export DB_PASSWORD="secure_password_123"
 export DB_NAME=gym_lockers
 
-# Set MQTT configuration based on external MQTT setting
-if [ "$USE_EXTERNAL_MQTT" = "true" ] && [ -n "$EXTERNAL_MQTT_HOST" ]; then
+# Set MQTT configuration based on MQTT enabled setting
+if [ "$MQTT_ENABLED" = "false" ]; then
+    bashio::log.info "MQTT is disabled - application will run without MQTT connectivity"
+    export MQTT_ENABLED=false
+    export USE_EXTERNAL_MQTT=false
+elif [ "$USE_EXTERNAL_MQTT" = "true" ] && [ -n "$EXTERNAL_MQTT_HOST" ]; then
     bashio::log.info "Using external MQTT broker: $EXTERNAL_MQTT_HOST:$EXTERNAL_MQTT_PORT"
+    export MQTT_ENABLED=true
     export MQTT_HOST="$EXTERNAL_MQTT_HOST"
     export MQTT_PORT="$EXTERNAL_MQTT_PORT"
     export MQTT_USERNAME="$EXTERNAL_MQTT_USERNAME"
@@ -167,6 +213,7 @@ if [ "$USE_EXTERNAL_MQTT" = "true" ] && [ -n "$EXTERNAL_MQTT_HOST" ]; then
     export USE_EXTERNAL_MQTT=true
 else
     bashio::log.info "Using built-in MQTT broker"
+    export MQTT_ENABLED=true
     export MQTT_HOST=localhost
     export MQTT_PORT=1884
     export MQTT_USERNAME="gym_mqtt_user"
@@ -176,7 +223,16 @@ else
 fi
 
 export SYSTEM_AUTO_REFRESH="$SYSTEM_AUTO_REFRESH"
+export SYSTEM_DATA_RETENTION_DAYS="$SYSTEM_DATA_RETENTION_DAYS"
+export SYSTEM_BACKUP_ENABLED="$SYSTEM_BACKUP_ENABLED"
 export SYSTEM_DEBUG_MODE="$SYSTEM_DEBUG_MODE"
+export NOTIFICATIONS_EMAIL_ALERTS="$NOTIFICATIONS_EMAIL_ALERTS"
+export NOTIFICATIONS_USAGE_REPORTS="$NOTIFICATIONS_USAGE_REPORTS"
+export NOTIFICATIONS_REAL_TIME_UPDATES="$NOTIFICATIONS_REAL_TIME_UPDATES"
+export SECURITY_SESSION_TIMEOUT="$SECURITY_SESSION_TIMEOUT"
+export SECURITY_PASSWORD_POLICY="$SECURITY_PASSWORD_POLICY"
+export SECURITY_TWO_FACTOR_AUTH="$SECURITY_TWO_FACTOR_AUTH"
+export SECURITY_AUDIT_LOGGING="$SECURITY_AUDIT_LOGGING"
 
 # Start supervisor to manage all services
 bashio::log.info "Starting supervisor..."

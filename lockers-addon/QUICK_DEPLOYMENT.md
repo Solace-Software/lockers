@@ -1,86 +1,219 @@
-# Quick Home Assistant Deployment Guide
+# Quick Deployment Guide - Gym Locker Admin Dashboard
 
-## 🚀 Fast Deployment Steps
+## 🚀 **Updated Home Assistant Addon (v1.4.0)**
 
-### Step 1: Install Required Addons
+### **Key Changes in v1.4.0:**
+- ✅ **Internal Database Only**: No external database credentials required
+- ✅ **Optional MQTT**: Can run without MQTT connectivity
+- ✅ **Enhanced Configuration**: More configuration options available
+- ✅ **Better Error Handling**: Graceful handling of missing MQTT
+- ✅ **UI Configuration**: MQTT settings configurable through web interface
 
-#### Install MariaDB:
-1. Go to **Settings** → **Add-ons** → **Add-on Store**
-2. Search for **"MariaDB"**
-3. Click **Install**
-4. Click **Start**
-5. Note: Default credentials are usually `homeassistant`/`homeassistant`
+## 📦 **Installation Steps**
 
-#### Install Mosquitto Broker:
-1. Go to **Settings** → **Add-ons** → **Add-on Store**
-2. Search for **"Mosquitto broker"**
-3. Click **Install**
-4. Click **Start**
-5. Leave authentication disabled for now (can be configured later)
+### **1. Add Repository**
+```
+Home Assistant → Settings → Add-ons → Add-on Store → Repositories
+Add: https://github.com/Solace-Software/lockers
+```
 
-### Step 2: Add the Repository
+### **2. Install Addon**
+```
+Find "Gym Locker Admin Dashboard"
+Click Install
+```
 
-1. Go to **Settings** → **Add-ons** → **Add-on Store**
-2. Click the **⋮** menu (top right corner)
-3. Select **"Repositories"**
-4. Add: `https://github.com/Solace-Software/lockers`
-5. Click **Add**
+### **3. Configure (Optional)**
+```
+Click Configuration tab
+Default settings work out of the box:
+- MQTT: Disabled (can be enabled later)
+- Database: Internal (no configuration needed)
+- System: Default settings
+Click Save
+```
 
-### Step 3: Install the Addon
+### **4. Start Addon**
+```
+Click Start
+Wait for initialization (30-60 seconds)
+Click Open Web UI
+```
 
-1. In the **Add-on Store**, you should now see **"Gym Locker Dashboard"**
-2. Click on it
-3. Click **Install**
-4. Wait for installation to complete
+## ⚙️ **Configuration Options**
 
-### Step 4: Configure the Addon
-
-1. Click on **Gym Locker Dashboard** addon
-2. Go to **Configuration** tab
-3. Use this configuration:
-
+### **MQTT Settings (Optional)**
 ```json
 {
-  "db_host": "core-mariadb",
-  "db_port": 3306,
-  "db_user": "homeassistant",
-  "db_password": "homeassistant",
-  "db_name": "gym_lockers",
-  "mqtt_host": "core-mosquitto",
-  "mqtt_port": 1883,
-  "mqtt_username": "",
-  "mqtt_password": "",
-  "mqtt_client_id": "gym-admin"
+  "mqtt_enabled": false,                    // Enable/disable MQTT
+  "use_external_mqtt": false,               // Use external MQTT broker
+  "external_mqtt_host": "",                 // External MQTT host
+  "external_mqtt_port": 1883,               // External MQTT port
+  "external_mqtt_username": "",             // External MQTT username
+  "external_mqtt_password": "",             // External MQTT password
+  "external_mqtt_client_id": "gym-admin"    // External MQTT client ID
 }
 ```
 
-### Step 5: Start and Access
+### **System Settings**
+```json
+{
+  "system_auto_refresh": 30,                // Auto-refresh interval (seconds)
+  "system_data_retention_days": 90,         // Data retention period
+  "system_backup_enabled": true,            // Enable automatic backups
+  "system_debug_mode": false                // Enable debug mode
+}
+```
 
-1. Click **Start** to launch the addon
-2. Check the **Logs** tab for any errors
-3. Once running, click **Open Web UI** to access the dashboard
+### **Notification Settings**
+```json
+{
+  "notifications_email_alerts": true,       // Enable email alerts
+  "notifications_usage_reports": false,     // Enable usage reports
+  "notifications_real_time_updates": true   // Enable real-time updates
+}
+```
 
-## 🔧 Troubleshooting
+### **Security Settings**
+```json
+{
+  "security_session_timeout": 30,           // Session timeout (minutes)
+  "security_password_policy": "standard",   // Password policy
+  "security_two_factor_auth": false,        // Enable 2FA
+  "security_audit_logging": true            // Enable audit logging
+}
+```
 
-### If the addon won't start:
-1. Check that MariaDB and Mosquitto are running
-2. Verify the configuration syntax
-3. Check the addon logs for specific errors
+## 🌐 **Access Methods**
 
-### If you can't access the web UI:
-1. Try accessing via Home Assistant sidebar
-2. Check that ingress is enabled
-3. Verify the addon is running
+### **Method 1: Home Assistant Ingress (Recommended)**
+```
+Home Assistant → Sidebar → Gym Locker Dashboard
+```
 
-### If database connection fails:
-1. Make sure MariaDB addon is running
-2. Check the database credentials
-3. Try using `homeassistant`/`homeassistant` as default
+### **Method 2: Direct Port Access**
+```
+http://your-ha-ip:3001
+```
 
-## 📞 Need Help?
+## 🔧 **MQTT Configuration**
 
-If you encounter any issues:
-1. Check the addon logs first
-2. Verify all prerequisites are installed
-3. Test database and MQTT connections separately
-4. Review the full documentation in the repository 
+### **Option 1: Disabled (Default)**
+- App runs without MQTT connectivity
+- Can be enabled later through web interface
+- No MQTT configuration required
+
+### **Option 2: Built-in MQTT**
+```json
+{
+  "mqtt_enabled": true,
+  "use_external_mqtt": false
+}
+```
+
+### **Option 3: External MQTT**
+```json
+{
+  "mqtt_enabled": true,
+  "use_external_mqtt": true,
+  "external_mqtt_host": "192.168.1.100",
+  "external_mqtt_port": 1883,
+  "external_mqtt_username": "your_username",
+  "external_mqtt_password": "your_password"
+}
+```
+
+## 📊 **Database Management**
+
+### **Automatic Management**
+- Database is automatically initialized
+- No external database setup required
+- Data persists across restarts
+- Automatic schema updates
+
+### **Data Location**
+```
+Home Assistant → /data/db/ (internal)
+```
+
+## 🛠️ **Troubleshooting**
+
+### **Addon Won't Start**
+1. Check configuration syntax
+2. Review addon logs
+3. Restart Home Assistant if needed
+
+### **Web Interface Not Accessible**
+1. Ensure addon is started
+2. Check port 3001 is not in use
+3. Try accessing via Home Assistant sidebar
+
+### **MQTT Issues**
+1. Check if MQTT is enabled
+2. Verify MQTT settings in web interface
+3. Check MQTT logs in addon logs
+
+### **Database Issues**
+1. Database is automatically managed
+2. Check addon logs for database errors
+3. Restart addon if needed
+
+## 📈 **Performance**
+
+### **Resource Requirements**
+- **CPU**: 1-2 cores
+- **RAM**: 1-2 GB
+- **Storage**: 2-5 GB (depending on data retention)
+
+### **Scalability**
+- **Small**: < 50 lockers (default settings)
+- **Medium**: 50-200 lockers (increase MQTT connections)
+- **Large**: > 200 lockers (optimize settings)
+
+## 🔄 **Updates**
+
+### **Automatic Updates**
+- Updates available through Home Assistant addon store
+- Configuration preserved during updates
+- Database data preserved during updates
+
+### **Manual Updates**
+```
+Home Assistant → Add-ons → Gym Locker Dashboard → Update
+```
+
+## 📋 **Next Steps**
+
+1. **Initial Setup**: Access web interface and configure settings
+2. **Add Lockers**: Add your locker devices through the web interface
+3. **Add Users**: Create user accounts and assign RFID tags
+4. **Configure MQTT**: Enable MQTT if needed for locker communication
+5. **Monitor**: Use the dashboard to monitor locker status
+
+## 🎯 **Benefits of v1.4.0**
+
+### ✅ **Simplified Deployment**
+- No external database setup required
+- No external MQTT broker needed
+- Works out of the box with default settings
+
+### ✅ **Flexible Configuration**
+- MQTT can be disabled or configured later
+- All settings configurable through web interface
+- Enhanced configuration options
+
+### ✅ **Better Integration**
+- Native Home Assistant addon
+- Ingress support
+- Integrated with HA backup system
+- HA logs integration
+
+### ✅ **Improved Reliability**
+- Graceful handling of missing MQTT
+- Better error handling
+- Automatic database management
+- Persistent data storage
+
+---
+
+**Ready to deploy!** The updated addon provides a complete gym locker management solution with no external dependencies and flexible MQTT configuration. 

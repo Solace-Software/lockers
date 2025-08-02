@@ -56,6 +56,8 @@ services:
     volumes:
       - ./db-data:/var/lib/mysql
       - ./db-init:/docker-entrypoint-initdb.d
+    ports:
+      - "3306:3306"
     networks:
       - gym-network
     command: --default-authentication-plugin=mysql_native_password
@@ -70,6 +72,9 @@ services:
       - ./mqtt-logs:/mosquitto/log
       - ./mqtt-config:/mosquitto/config
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+    ports:
+      - "1883:1883"
+      - "9001:9001"
     networks:
       - gym-network
 

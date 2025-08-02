@@ -36,16 +36,16 @@ staticPaths.forEach(staticPath => {
   }
 });
 
-const { mqttConfig: addonMqttConfig } = require('./config');
+const { mqttConfig: addonMqttConfig, mqttEnabled } = require('./config');
 
 // MQTT Configuration - Dynamic settings from API
-let mqttConfig = {
+let mqttConfig = addonMqttConfig ? {
   host: addonMqttConfig.host,
   port: addonMqttConfig.port,
   username: addonMqttConfig.username,
   password: addonMqttConfig.password,
   clientId: addonMqttConfig.clientId
-};
+} : null;
 
 // Settings storage (in production, use a database)
 let systemSettings = {
@@ -94,6 +94,14 @@ function connectMQTT() {
     return;
   }
 
+  // Check if MQTT is enabled and configured
+  if (!mqttEnabled || !mqttConfig) {
+    console.log('⚠️ MQTT is not enabled or not configured. The application will run without MQTT connectivity.');
+    console.log('📝 You can configure MQTT settings through the web interface.');
+    mqttStatus = 'disabled';
+    return;
+  }
+
   isConnecting = true;
 
   try {
@@ -109,17 +117,16 @@ function connectMQTT() {
       isConnected = false;
     }
 
-    const currentMqttConfig = systemSettings.mqttConfig;
     console.log('🔌 Connecting to MQTT broker...', {
-      host: currentMqttConfig.host,
-      port: currentMqttConfig.port,
-      clientId: currentMqttConfig.clientId
+      host: mqttConfig.host,
+      port: mqttConfig.port,
+      clientId: mqttConfig.clientId
     });
 
-    mqttClient = mqtt.connect(`mqtt://${currentMqttConfig.host}:${currentMqttConfig.port}`, {
-      clientId: currentMqttConfig.clientId,
-      username: currentMqttConfig.username || undefined,
-      password: currentMqttConfig.password || undefined,
+    mqttClient = mqtt.connect(`mqtt://${mqttConfig.host}:${mqttConfig.port}`, {
+      clientId: mqttConfig.clientId,
+      username: mqttConfig.username || undefined,
+      password: mqttConfig.password || undefined,
       clean: true,
       connectTimeout: 10000,
       reconnectPeriod: 0, // We'll handle reconnection manually

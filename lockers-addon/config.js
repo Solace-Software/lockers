@@ -53,7 +53,7 @@ const addonConfig = getAddonConfig();
 // Check if external MQTT is enabled
 const useExternalMqtt = addonConfig.use_external_mqtt === true;
 
-// Database configuration (always built-in)
+// Database configuration (always internal - no external credentials needed)
 const dbConfig = {
   host: 'localhost',
   port: 3306,
@@ -62,34 +62,45 @@ const dbConfig = {
   database: 'gym_lockers'
 };
 
-// MQTT configuration based on external MQTT setting
-let mqttConfig;
-if (useExternalMqtt && addonConfig.external_mqtt_host) {
-  // Use external MQTT configuration
-  mqttConfig = {
-    host: addonConfig.external_mqtt_host,
-    port: addonConfig.external_mqtt_port ? parseInt(addonConfig.external_mqtt_port) : 1883,
-    username: addonConfig.external_mqtt_username || undefined,
-    password: addonConfig.external_mqtt_password || undefined,
-    clientId: addonConfig.external_mqtt_client_id || `gym-admin-external-${Math.random().toString(16).slice(3)}`,
-    websocketPort: 9001,
-    allowAnonymous: true,
-    maxConnections: 100,
-    maxMessageSize: 1024
-  };
+// MQTT configuration - can be disabled or configured through UI
+let mqttConfig = null;
+let mqttEnabled = false;
+
+if (addonConfig.mqtt_enabled !== false) { // Default to enabled unless explicitly disabled
+  if (addonConfig.use_external_mqtt && addonConfig.external_mqtt_host) {
+    // Use external MQTT configuration from addon config
+    mqttConfig = {
+      host: addonConfig.external_mqtt_host,
+      port: addonConfig.external_mqtt_port ? parseInt(addonConfig.external_mqtt_port) : 1883,
+      username: addonConfig.external_mqtt_username || undefined,
+      password: addonConfig.external_mqtt_password || undefined,
+      clientId: addonConfig.external_mqtt_client_id || `gym-admin-external-${Math.random().toString(16).slice(3)}`,
+      websocketPort: 9001,
+      allowAnonymous: true,
+      maxConnections: 100,
+      maxMessageSize: 1024
+    };
+    mqttEnabled = true;
+  } else if (addonConfig.mqtt_host) {
+    // Use MQTT configuration from addon config (non-external)
+    mqttConfig = {
+      host: addonConfig.mqtt_host,
+      port: addonConfig.mqtt_port ? parseInt(addonConfig.mqtt_port) : 1883,
+      username: addonConfig.mqtt_username || undefined,
+      password: addonConfig.mqtt_password || undefined,
+      clientId: addonConfig.mqtt_client_id || `gym-admin-${Math.random().toString(16).slice(3)}`,
+      websocketPort: 9001,
+      allowAnonymous: true,
+      maxConnections: 100,
+      maxMessageSize: 1024
+    };
+    mqttEnabled = true;
+  } else {
+    // No MQTT configuration - will be configurable through UI
+    mqttEnabled = false;
+  }
 } else {
-  // Use built-in MQTT configuration
-  mqttConfig = {
-    host: 'localhost',
-    port: 1884,
-    username: 'gym_mqtt_user',
-    password: 'mqtt_password_123',
-    clientId: `gym-admin-builtin-${Math.random().toString(16).slice(3)}`,
-    websocketPort: 9001,
-    allowAnonymous: true,
-    maxConnections: 100,
-    maxMessageSize: 1024
-  };
+  mqttEnabled = false;
 }
 
 // System settings
@@ -124,15 +135,20 @@ console.log('DB_USER:', dbConfig.user);
 console.log('DB_PASSWORD:', dbConfig.password ? '***' : 'undefined');
 console.log('DB_NAME:', dbConfig.database);
 
-console.log('MQTT_HOST:', mqttConfig.host);
-console.log('MQTT_PORT:', mqttConfig.port);
-console.log('MQTT_USERNAME:', mqttConfig.username || 'undefined');
-console.log('MQTT_PASSWORD:', mqttConfig.password ? '***' : 'undefined');
-console.log('MQTT_CLIENT_ID:', mqttConfig.clientId);
-console.log('MQTT_WEBSOCKET_PORT:', mqttConfig.websocketPort);
-console.log('MQTT_ALLOW_ANONYMOUS:', mqttConfig.allowAnonymous);
-console.log('MQTT_MAX_CONNECTIONS:', mqttConfig.maxConnections);
-console.log('MQTT_MAX_MESSAGE_SIZE:', mqttConfig.maxMessageSize);
+console.log('MQTT_ENABLED:', mqttEnabled);
+if (mqttConfig) {
+  console.log('MQTT_HOST:', mqttConfig.host);
+  console.log('MQTT_PORT:', mqttConfig.port);
+  console.log('MQTT_USERNAME:', mqttConfig.username || 'undefined');
+  console.log('MQTT_PASSWORD:', mqttConfig.password ? '***' : 'undefined');
+  console.log('MQTT_CLIENT_ID:', mqttConfig.clientId);
+  console.log('MQTT_WEBSOCKET_PORT:', mqttConfig.websocketPort);
+  console.log('MQTT_ALLOW_ANONYMOUS:', mqttConfig.allowAnonymous);
+  console.log('MQTT_MAX_CONNECTIONS:', mqttConfig.maxConnections);
+  console.log('MQTT_MAX_MESSAGE_SIZE:', mqttConfig.maxMessageSize);
+} else {
+  console.log('MQTT_CONFIG: Not configured (will be configurable through UI)');
+}
 
 console.log('SYSTEM_AUTO_REFRESH:', systemSettings.autoRefresh);
 console.log('SYSTEM_DATA_RETENTION:', systemSettings.dataRetention);
@@ -151,6 +167,7 @@ console.log('SECURITY_AUDIT_LOGGING:', securitySettings.auditLogging);
 module.exports = {
   dbConfig,
   mqttConfig,
+  mqttEnabled,
   systemSettings,
   notificationSettings,
   securitySettings,
