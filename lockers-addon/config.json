@@ -1,6 +1,6 @@
 {
   "name": "Gym Locker Admin Dashboard",
-  "version": "1.4.9",
+  "version": "1.5.0",
   "slug": "gym_locker_dashboard",
   "description": "Complete gym locker management system with internal database and optional MQTT configuration. No external dependencies required - everything runs internally.",
   "repository": "https://github.com/Solace-Software/lockers",
