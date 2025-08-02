@@ -38,6 +38,34 @@ mkdir -p /var/lib/mysql /var/log/mysql /var/run/mysqld
 mkdir -p /mosquitto/data /mosquitto/log /mosquitto/config
 mkdir -p /app/logs /app/data
 
+# Configure Mosquitto based on external MQTT setting
+if [ "$USE_EXTERNAL_MQTT" = "true" ] && [ -n "$EXTERNAL_MQTT_HOST" ]; then
+    bashio::log.info "External MQTT enabled - disabling built-in MQTT broker"
+    # Create a minimal Mosquitto config that doesn't bind to any port
+    cat > /mosquitto/config/mosquitto.conf << EOF
+# Mosquitto MQTT Broker Configuration (Disabled for External MQTT)
+persistence true
+persistence_location /mosquitto/data/
+log_dest file /mosquitto/log/mosquitto.log
+log_dest stdout
+
+# Allow anonymous connections (for development)
+allow_anonymous true
+
+# No listeners - external MQTT is being used
+# listener 1884 127.0.0.1
+# protocol mqtt
+
+# WebSocket support (optional)
+listener 9001
+protocol websockets
+EOF
+else
+    bashio::log.info "Using built-in MQTT broker"
+    # Use the default Mosquitto config with localhost listener
+    cp /app/mosquitto.conf /mosquitto/config/mosquitto.conf
+fi
+
 # Generate supervisor configuration based on external MQTT setting
 bashio::log.info "Generating supervisor configuration..."
 cat > /etc/supervisor/conf.d/supervisord.conf << EOF
