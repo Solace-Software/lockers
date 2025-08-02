@@ -1,6 +1,6 @@
 {
   "name": "gym-locker-admin-dashboard",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "A management system for gym lockers with MQTT support",
   "main": "server.js",
   "scripts": {
