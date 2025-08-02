@@ -1,20 +1,21 @@
-ARG BUILD_FROM=homeassistant/amd64-base-debian:bullseye
+ARG BUILD_FROM=homeassistant/amd64-base:latest
 FROM ${BUILD_FROM}
 
 # Set shell
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
+RUN apk add --no-cache \
     nodejs \
     npm \
-    mariadb-server \
+    mariadb \
     mariadb-client \
     mosquitto \
     mosquitto-clients \
     supervisor \
+    bash \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/cache/apk/*
 
 # Create application directory
 WORKDIR /app
@@ -50,6 +51,9 @@ RUN cd client && npm install && npm run build
 RUN chmod a+x /etc/services.d/gym-lockers/* \
     && chmod a+x /etc/cont-init.d/*
 
+# Copy and setup supervisor configuration
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
 # Labels
 LABEL \
     io.hass.name="Gym Lockers Management System" \
@@ -65,8 +69,5 @@ LABEL \
     org.opencontainers.image.url="https://github.com/Solace-Software/lockers" \
     org.opencontainers.image.source="https://github.com/Solace-Software/lockers" \
     org.opencontainers.image.documentation="https://github.com/Solace-Software/lockers/blob/main/README.md"
-
-# Copy and setup supervisor configuration
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
