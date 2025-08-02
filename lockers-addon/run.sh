@@ -76,11 +76,12 @@ logfile=/app/logs/supervisord.log
 pidfile=/app/supervisord.pid
 
 [program:mariadb]
-command=/usr/bin/mysqld_safe --datadir=/var/lib/mysql
+command=/usr/bin/mysqld_safe --datadir=/var/lib/mysql --user=mysql
 user=mysql
 autostart=true
 autorestart=true
-startretries=3
+startretries=5
+startsecs=10
 stdout_logfile=/app/logs/mariadb.log
 stderr_logfile=/app/logs/mariadb.error.log
 priority=100
@@ -128,6 +129,9 @@ EOF
 if [ ! -f /var/lib/mysql/mysql ]; then
     bashio::log.info "Initializing database..."
     mysql_install_db --datadir=/var/lib/mysql --user=mysql
+    bashio::log.info "Database initialization completed"
+else
+    bashio::log.info "Database already exists, skipping initialization"
 fi
 
 # Update database password if provided
@@ -177,5 +181,26 @@ export SYSTEM_DEBUG_MODE="$SYSTEM_DEBUG_MODE"
 # Start supervisor to manage all services
 bashio::log.info "Starting supervisor..."
 
-# Start supervisor
-exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf 
+# Start supervisor in background to allow debugging
+/usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf &
+
+# Wait for supervisor to start
+sleep 3
+
+# Check if MariaDB is starting
+bashio::log.info "Checking MariaDB status..."
+supervisorctl status mariadb
+
+# Wait a bit more for MariaDB to fully start
+sleep 10
+
+# Check MariaDB status again
+bashio::log.info "Checking MariaDB status after startup..."
+supervisorctl status mariadb
+
+# Test database connection
+bashio::log.info "Testing database connection..."
+mysql -u gym_admin -psecure_password_123 -h localhost -e "SELECT 1;" 2>/dev/null && echo "✅ Database connection successful" || echo "❌ Database connection failed"
+
+# Keep the script running
+wait 
