@@ -1,22 +1,20 @@
-ARG BUILD_FROM=ghcr.io/hassio-addons/base:14.0.0
+ARG BUILD_FROM=homeassistant/amd64-base-debian:bullseye
 FROM ${BUILD_FROM}
 
 # Set shell
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Install system dependencies
-RUN \
-    apk add --no-cache \
-        nodejs \
-        npm \
-        mariadb \
-        mariadb-client \
-        mosquitto \
-        mosquitto-clients \
-        supervisor \
-        bash \
-        curl \
-    && rm -rf /var/cache/apk/*
+RUN apt-get update && apt-get install -y \
+    nodejs \
+    npm \
+    mariadb-server \
+    mariadb-client \
+    mosquitto \
+    mosquitto-clients \
+    supervisor \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create application directory
 WORKDIR /app
@@ -49,11 +47,8 @@ RUN \
 RUN cd client && npm install && npm run build
 
 # Set permissions
-RUN chmod a+x /etc/cont-init.d/* && \
-    chmod a+x /etc/services.d/gym-lockers/*
-
-# Set S6 Overlay entrypoint
-ENTRYPOINT ["/init"]
+RUN chmod a+x /etc/services.d/gym-lockers/* \
+    && chmod a+x /etc/cont-init.d/*
 
 # Labels
 LABEL \
@@ -70,3 +65,8 @@ LABEL \
     org.opencontainers.image.url="https://github.com/Solace-Software/lockers" \
     org.opencontainers.image.source="https://github.com/Solace-Software/lockers" \
     org.opencontainers.image.documentation="https://github.com/Solace-Software/lockers/blob/main/README.md"
+
+# Copy and setup supervisor configuration
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
