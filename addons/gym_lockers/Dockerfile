@@ -1,4 +1,4 @@
-FROM homeassistant/amd64-base-python:3.11-alpine3.19
+FROM alpine:3.19
 
 # Set shell
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -15,6 +15,7 @@ RUN \
         supervisor \
         bash \
         curl \
+        python3 \
     && rm -rf /var/cache/apk/*
 
 # Create application directory
