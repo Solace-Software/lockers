@@ -1,0 +1,13 @@
+{
+  "name": "gym-locker-admin-dashboard",
+  "version": "1.2.3",
+  "description": "A management system for gym lockers with MQTT support",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "server": "node start-server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Solace Software",
+  "license": "ISC"
+}

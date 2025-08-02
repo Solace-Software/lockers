@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # Mosquitto MQTT Broker
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: gym-lockers-mqtt
+    restart: unless-stopped
+    volumes:
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_logs:/mosquitto/log
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    networks:
+      - gym-network
+
+  # Gym Locker Dashboard
+  gym-locker-dashboard:
+    build: .
+    container_name: gym-locker-dashboard
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - DB_HOST=host.docker.internal
+      - DB_PORT=3306
+      - DB_USER=gym_admin
+      - DB_PASSWORD=secure_password_123
+      - DB_NAME=gym_lockers
+      - MQTT_HOST=mosquitto
+      - MQTT_PORT=1883
+      - MQTT_USERNAME=
+      - MQTT_PASSWORD=
+      - MQTT_CLIENT_ID=gym-admin-docker
+    networks:
+      - gym-network
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - mosquitto
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+networks:
+  gym-network:
+    name: lockers-addon_gym-network
+    external: true
+
+volumes:
+  mosquitto_data:
+  mosquitto_logs:
