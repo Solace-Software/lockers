@@ -14,88 +14,101 @@ init: false
 panel_icon: mdi:locker
 panel_title: Gym Lockers
 homeassistant_api: true
-
-# Configuration UI
-schema:
-  database:
-    name: str
-    host: str
-    port: port?
-    username: str
-    password: password
-  mqtt:
-    use_internal: bool
-    external_host: str?
-    external_port: port?
-    external_username: str?
-    external_password: password?
-  system:
-    auto_refresh: int(10,300)
-    data_retention_days: int(1,365)
-    debug_mode: bool
+ingress: true
+ingress_port: 3001
 
 # Default values
 options:
   database:
-    name: "gym_lockers"
     host: ""
     port: 3306
+    name: "gym_lockers"
     username: ""
     password: ""
   mqtt:
     use_internal: true
-    external_host: ""
-    external_port: 1883
-    external_username: ""
-    external_password: ""
-  system:
-    auto_refresh: 30
-    data_retention_days: 90
-    debug_mode: false
+    external:
+      host: ""
+      port: 1883
+      username: ""
+      password: ""
+
+# Schema for UI
+schema:
+  database:
+    host: str
+    port: port
+    name: str
+    username: str
+    password: password
+  mqtt:
+    use_internal: bool
+    external:
+      host: str?
+      port: port?
+      username: str?
+      password: password?
 
 # UI Configuration
 translations:
   en:
-    configuration:
-      database:
-        name:
-          name: "Database Name"
-          description: "Name of the MySQL/MariaDB database"
+    title: "Gym Lockers"
+    description: "Manage your gym lockers system"
+    network:
+      title: "Network"
+      description: "Network configuration for the addon"
+    database:
+      title: "Database"
+      description: "Configure your external MariaDB/MySQL database"
+      host:
+        name: "Host"
+        description: "The hostname or IP address of your database server"
+      port:
+        name: "Port"
+        description: "The port number of your database server (default: 3306)"
+      name:
+        name: "Database Name"
+        description: "The name of the database to use"
+      username:
+        name: "Username"
+        description: "Database user with necessary permissions"
+      password:
+        name: "Password"
+        description: "Password for the database user"
+    mqtt:
+      title: "MQTT"
+      description: "MQTT broker configuration"
+      use_internal:
+        name: "Use Internal Broker"
+        description: "Use the built-in MQTT broker (recommended)"
+      external:
+        title: "External MQTT"
+        description: "Configure external MQTT broker (if not using internal)"
         host:
-          name: "Database Host"
-          description: "Hostname or IP address of your MySQL/MariaDB server"
+          name: "Broker Host"
+          description: "The hostname or IP address of your MQTT broker"
         port:
-          name: "Database Port"
-          description: "Port number of your MySQL/MariaDB server (default: 3306)"
+          name: "Broker Port"
+          description: "The port number of your MQTT broker (default: 1883)"
         username:
-          name: "Database Username"
-          description: "Username for database authentication"
+          name: "Username"
+          description: "MQTT broker username (optional)"
         password:
-          name: "Database Password"
-          description: "Password for database authentication"
-      mqtt:
-        use_internal:
-          name: "Use Internal MQTT Broker"
-          description: "Toggle between internal (built-in) or external MQTT broker"
-        external_host:
-          name: "MQTT Broker Host"
-          description: "External MQTT broker hostname or IP (only if not using internal)"
-        external_port:
-          name: "MQTT Broker Port"
-          description: "External MQTT broker port (default: 1883)"
-        external_username:
-          name: "MQTT Username"
-          description: "Username for external MQTT broker (optional)"
-        external_password:
-          name: "MQTT Password"
-          description: "Password for external MQTT broker (optional)"
-      system:
-        auto_refresh:
-          name: "Auto Refresh Interval"
-          description: "How often to refresh the dashboard (in seconds)"
-        data_retention_days:
-          name: "Data Retention"
-          description: "Number of days to keep historical data"
-        debug_mode:
-          name: "Debug Mode"
-          description: "Enable detailed logging for troubleshooting"
+          name: "Password"
+          description: "MQTT broker password (optional)"
+
+# Panel configuration
+panel_admin: true
+webui: "http://[HOST]:[PORT:3001]"
+ingress_stream: true
+
+# Advanced configuration
+stage: stable
+hassio_role: default
+hassio_api: true
+auth_api: true
+uart: false
+map:
+  - share:rw
+  - ssl
+  - config:rw
