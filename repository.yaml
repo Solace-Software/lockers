@@ -1,3 +1,4 @@
-name: Gym Locker Add-ons
-url: https://github.com/Solace-Software/lockers
-maintainer: Solace Software
+name: "Gym Locker Add-ons"
+url: "https://github.com/Solace-Software/lockers"
+maintainer: "Solace Software"
+slug: "gym_lockers_repository"
