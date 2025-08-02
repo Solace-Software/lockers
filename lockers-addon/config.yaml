@@ -1,0 +1,101 @@
+name: "Gym Lockers Management System"
+version: "1.0.0"
+slug: "gym_lockers"
+description: "A management system for gym lockers with MQTT support"
+url: "https://github.com/yourusername/gym-lockers"
+arch:
+  - armhf
+  - armv7
+  - aarch64
+  - amd64
+  - i386
+startup: services
+init: false
+panel_icon: mdi:locker
+panel_title: Gym Lockers
+homeassistant_api: true
+
+# Configuration UI
+schema:
+  database:
+    name: str
+    host: str
+    port: port?
+    username: str
+    password: password
+  mqtt:
+    use_internal: bool
+    external_host: str?
+    external_port: port?
+    external_username: str?
+    external_password: password?
+  system:
+    auto_refresh: int(10,300)
+    data_retention_days: int(1,365)
+    debug_mode: bool
+
+# Default values
+options:
+  database:
+    name: "gym_lockers"
+    host: ""
+    port: 3306
+    username: ""
+    password: ""
+  mqtt:
+    use_internal: true
+    external_host: ""
+    external_port: 1883
+    external_username: ""
+    external_password: ""
+  system:
+    auto_refresh: 30
+    data_retention_days: 90
+    debug_mode: false
+
+# UI Configuration
+translations:
+  en:
+    configuration:
+      database:
+        name:
+          name: "Database Name"
+          description: "Name of the MySQL/MariaDB database"
+        host:
+          name: "Database Host"
+          description: "Hostname or IP address of your MySQL/MariaDB server"
+        port:
+          name: "Database Port"
+          description: "Port number of your MySQL/MariaDB server (default: 3306)"
+        username:
+          name: "Database Username"
+          description: "Username for database authentication"
+        password:
+          name: "Database Password"
+          description: "Password for database authentication"
+      mqtt:
+        use_internal:
+          name: "Use Internal MQTT Broker"
+          description: "Toggle between internal (built-in) or external MQTT broker"
+        external_host:
+          name: "MQTT Broker Host"
+          description: "External MQTT broker hostname or IP (only if not using internal)"
+        external_port:
+          name: "MQTT Broker Port"
+          description: "External MQTT broker port (default: 1883)"
+        external_username:
+          name: "MQTT Username"
+          description: "Username for external MQTT broker (optional)"
+        external_password:
+          name: "MQTT Password"
+          description: "Password for external MQTT broker (optional)"
+      system:
+        auto_refresh:
+          name: "Auto Refresh Interval"
+          description: "How often to refresh the dashboard (in seconds)"
+        data_retention_days:
+          name: "Data Retention"
+          description: "Number of days to keep historical data"
+        debug_mode:
+          name: "Debug Mode"
+          description: "Enable detailed logging for troubleshooting"

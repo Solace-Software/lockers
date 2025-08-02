@@ -1,52 +1,67 @@
 {
-  "name": "Gym Locker Admin Dashboard",
-  "version": "2.0.0",
-  "slug": "gym_locker_dashboard",
-  "description": "Complete gym locker management system with internal database and optional MQTT configuration. No external dependencies required - everything runs internally.",
-  "repository": "https://github.com/Solace-Software/lockers",
+  "name": "Gym Lockers Management System",
+  "version": "1.0.0",
+  "slug": "gym_lockers",
+  "description": "A management system for gym lockers with MQTT support",
+  "url": "https://github.com/yourusername/gym-lockers",
+  "arch": ["armhf", "armv7", "aarch64", "amd64", "i386"],
   "startup": "services",
-  "boot": "auto",
-  "webui": "http://[HOST]:[PORT:3001]/",
+  "boot": "manual",
+  "init": false,
+  "stage": "experimental",
+  "hassio_api": true,
+  "hassio_role": "default",
+  "services": ["mysql:want"],
   "ports": {
-    "3001/tcp": 3001
+    "3001/tcp": 3001,
+    "1883/tcp": 1883,
+    "9001/tcp": 9001
   },
-  "ingress": true,
-  "ingress_entry": "/",
-  "panel_icon": "mdi:lock",
-  "arch": ["amd64", "armv7", "aarch64"],
+  "ports_description": {
+    "3001/tcp": "Web interface",
+    "1883/tcp": "MQTT broker",
+    "9001/tcp": "MQTT WebSocket"
+  },
   "options": {
-    "mqtt_enabled": false,
-    "use_external_mqtt": false,
-    "external_mqtt_host": "",
-    "external_mqtt_port": 1883,
-    "external_mqtt_username": "",
-    "external_mqtt_password": "",
-    "external_mqtt_client_id": "gym-admin-external",
-    "system_auto_refresh": 30,
-    "system_data_retention_days": 90,
-    "system_backup_enabled": true,
-    "system_debug_mode": false
+    "database": {
+      "host": null,
+      "port": 3306,
+      "name": "gym_lockers",
+      "username": null,
+      "password": null
+    },
+    "mqtt": {
+      "enabled": true,
+      "host": "localhost",
+      "port": 1883,
+      "username": "",
+      "password": ""
+    },
+    "system": {
+      "auto_refresh": 30,
+      "data_retention_days": 90,
+      "debug_mode": false
+    }
   },
   "schema": {
-    "mqtt_enabled": "bool",
-    "use_external_mqtt": "bool",
-    "external_mqtt_host": "str",
-    "external_mqtt_port": "int(1,65535)",
-    "external_mqtt_username": "str",
-    "external_mqtt_password": "str",
-    "external_mqtt_client_id": "str",
-    "system_auto_refresh": "int(5,300)",
-    "system_data_retention_days": "int(1,3650)",
-    "system_backup_enabled": "bool",
-    "system_debug_mode": "bool"
-  },
-  "map": [
-    "data:rw"
-  ],
-  "environment": {
-    "DB_HOST": "localhost",
-    "DB_PORT": "3306",
-    "DB_USER": "gym_admin",
-    "DB_NAME": "gym_lockers"
+    "database": {
+      "host": "str",
+      "port": "port",
+      "name": "str",
+      "username": "str",
+      "password": "password"
+    },
+    "mqtt": {
+      "enabled": "bool",
+      "host": "str",
+      "port": "port",
+      "username": "str?",
+      "password": "password?"
+    },
+    "system": {
+      "auto_refresh": "int(10,300)",
+      "data_retention_days": "int(1,365)",
+      "debug_mode": "bool"
+    }
   }
-} 
+}

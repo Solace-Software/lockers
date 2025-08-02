@@ -15,8 +15,6 @@ function getAddonConfig() {
     console.log('⚠️ Could not read addon configuration:', error.message);
   }
   
-  // No hardcoded credential files - only use addon configuration or environment variables
-  
   try {
     // Try to read from local config file (for development)
     const localConfigPath = path.join(__dirname, 'local-config.json');
@@ -53,13 +51,13 @@ const addonConfig = getAddonConfig();
 // Check if external MQTT is enabled
 const useExternalMqtt = addonConfig.use_external_mqtt === true;
 
-// Database configuration (always internal - no external credentials needed)
+// Database configuration
 const dbConfig = {
-  host: 'localhost',
-  port: 3306,
-  user: 'gym_admin',
-  password: 'secure_password_123',
-  database: 'gym_lockers'
+  host: addonConfig.db_host,
+  port: parseInt(addonConfig.db_port) || 3306,
+  user: addonConfig.db_user,
+  password: addonConfig.db_password,
+  database: addonConfig.db_name || 'gym_lockers'
 };
 
 // MQTT configuration - can be disabled or configured through UI
@@ -68,7 +66,7 @@ let mqttEnabled = false;
 
 if (addonConfig.mqtt_enabled !== false) { // Default to enabled unless explicitly disabled
   if (addonConfig.use_external_mqtt && addonConfig.external_mqtt_host) {
-    // Use external MQTT configuration from addon config
+    // Use external MQTT configuration
     mqttConfig = {
       host: addonConfig.external_mqtt_host,
       port: addonConfig.external_mqtt_port ? parseInt(addonConfig.external_mqtt_port) : 1883,
@@ -82,7 +80,7 @@ if (addonConfig.mqtt_enabled !== false) { // Default to enabled unless explicitl
     };
     mqttEnabled = true;
   } else if (addonConfig.mqtt_host) {
-    // Use MQTT configuration from addon config (non-external)
+    // Use MQTT configuration from addon config
     mqttConfig = {
       host: addonConfig.mqtt_host,
       port: addonConfig.mqtt_port ? parseInt(addonConfig.mqtt_port) : 1883,
@@ -95,12 +93,7 @@ if (addonConfig.mqtt_enabled !== false) { // Default to enabled unless explicitl
       maxMessageSize: 1024
     };
     mqttEnabled = true;
-  } else {
-    // No MQTT configuration - will be configurable through UI
-    mqttEnabled = false;
   }
-} else {
-  mqttEnabled = false;
 }
 
 // System settings
@@ -111,11 +104,8 @@ const systemSettings = {
   debugMode: addonConfig.system_debug_mode !== undefined ? addonConfig.system_debug_mode : false
 };
 
-// Notification and security settings removed - simplified configuration
-
 // Debug: Print configurations
 console.log('📋 Configuration Summary:');
-console.log('Use External MQTT:', useExternalMqtt);
 console.log('DB_HOST:', dbConfig.host);
 console.log('DB_PORT:', dbConfig.port);
 console.log('DB_USER:', dbConfig.user);
@@ -148,4 +138,4 @@ module.exports = {
   mqttEnabled,
   systemSettings,
   addonConfig
-}; 
+};

@@ -1,20 +1,47 @@
-# Build frontend
-FROM node:18 AS frontend
-WORKDIR /frontend
-COPY client/package*.json ./client/
-RUN cd client && npm install
-COPY client ./client
-RUN cd client && npm run build
+ARG BUILD_FROM
+FROM $BUILD_FROM
 
-# Build backend
-FROM node:18 AS backend
+# Install dependencies
+RUN apk add --no-cache \
+    nodejs \
+    npm \
+    mosquitto
+
+# Set working directory
 WORKDIR /app
+
+# Copy package files
 COPY package*.json ./
+
+# Install production dependencies
 RUN npm install --production
+
+# Copy application files
 COPY . .
 
-# Copy frontend build to backend (if needed)
-COPY --from=frontend /frontend/client/build ./client_build
+# Make scripts executable
+RUN chmod +x /app/run.sh
 
-EXPOSE 3001
-CMD ["npm", "run", "server"] 
+# Setup mosquitto configuration
+RUN mkdir -p /etc/mosquitto && \
+    echo "listener 1883" > /etc/mosquitto/mosquitto.conf && \
+    echo "allow_anonymous true" >> /etc/mosquitto/mosquitto.conf
+
+# Set up Home Assistant addon environment
+ENV \
+    LANG="C.UTF-8" \
+    MYSQL_HOST="" \
+    MYSQL_DATABASE="gym_lockers" \
+    MYSQL_USER="" \
+    MYSQL_PASSWORD="" \
+    MYSQL_PORT="3306"
+
+# Labels
+LABEL \
+    io.hass.name="Gym Lockers Management System" \
+    io.hass.description="A management system for gym lockers with MQTT support" \
+    io.hass.type="addon" \
+    io.hass.version="1.0.0"
+
+# Start the application
+CMD [ "/app/run.sh" ]

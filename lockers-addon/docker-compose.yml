@@ -1,23 +1,6 @@
 version: '3.8'
 
 services:
-  # MariaDB Database
-  mariadb:
-    image: mariadb:10.6
-    container_name: gym-lockers-db
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: gym_lockers
-      MYSQL_USER: solace
-      MYSQL_PASSWORD: solace123
-    volumes:
-      - mariadb_data:/var/lib/mysql
-    ports:
-      - "3306:3306"
-    networks:
-      - gym-network
-
   # Mosquitto MQTT Broker
   mosquitto:
     image: eclipse-mosquitto:2.0
@@ -28,42 +11,43 @@ services:
       - mosquitto_logs:/mosquitto/log
       - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
     ports:
-      - "1884:1883"
-      - "9002:9001"
+      - "1883:1883"
+      - "9001:9001"
     networks:
       - gym-network
 
   # Gym Locker Dashboard
   gym-locker-dashboard:
-    image: gym-locker-dashboard:latest
+    build: .
     container_name: gym-locker-dashboard
     restart: unless-stopped
     ports:
-      - "3002:3001"
+      - "3001:3001"
     environment:
-      - DB_HOST=mariadb
+      - DB_HOST=host.docker.internal
       - DB_PORT=3306
-      - DB_USER=${DB_USER:-solace}
-      - DB_PASSWORD=${DB_PASSWORD:-solace123}
+      - DB_USER=gym_admin
+      - DB_PASSWORD=secure_password_123
       - DB_NAME=gym_lockers
       - MQTT_HOST=mosquitto
       - MQTT_PORT=1883
-      - MQTT_USERNAME=${MQTT_USERNAME:-}
-      - MQTT_PASSWORD=${MQTT_PASSWORD:-}
-      - MQTT_CLIENT_ID=${MQTT_CLIENT_ID:-gym-admin-docker}
-    depends_on:
-      - mariadb
-      - mosquitto
+      - MQTT_USERNAME=
+      - MQTT_PASSWORD=
+      - MQTT_CLIENT_ID=gym-admin-docker
     networks:
       - gym-network
     volumes:
       - ./data:/app/data
-
-volumes:
-  mariadb_data:
-  mosquitto_data:
-  mosquitto_logs:
+    depends_on:
+      - mosquitto
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 networks:
   gym-network:
-    driver: bridge 
+    name: lockers-addon_gym-network
+    external: true
+
+volumes:
+  mosquitto_data:
+  mosquitto_logs:
