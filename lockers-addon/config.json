@@ -11,6 +11,12 @@
   "hassio_api": true,
   "hassio_role": "default",
   "services": ["mysql:want"],
+  "panel_icon": "mdi:locker",
+  "panel_title": "Gym Lockers",
+  "ingress": true,
+  "ingress_port": 3001,
+  "panel_admin": true,
+  "webui": "http://[HOST]:[PORT:3001]",
   "ports": {
     "3001/tcp": 3001,
     "1883/tcp": 1883,
@@ -23,22 +29,24 @@
   },
   "options": {
     "database": {
-      "host": null,
+      "host": "",
       "port": 3306,
       "name": "gym_lockers",
-      "username": null,
-      "password": null
+      "username": "",
+      "password": ""
     },
     "mqtt": {
       "use_internal": true,
-      "external_host": "",
-      "external_port": 1883,
-      "external_username": "",
-      "external_password": ""
+      "external": {
+        "host": "",
+        "port": 1883,
+        "username": "",
+        "password": ""
+      }
     },
     "system": {
       "auto_refresh": 30,
-      "data_retention_days": 90,
+      "data_retention": 90,
       "debug_mode": false
     }
   },
@@ -52,15 +60,99 @@
     },
     "mqtt": {
       "use_internal": "bool",
-      "external_host": "str?",
-      "external_port": "port?",
-      "external_username": "str?",
-      "external_password": "password?"
+      "external": {
+        "host": "str?",
+        "port": "port?",
+        "username": "str?",
+        "password": "password?"
+      }
     },
     "system": {
       "auto_refresh": "int(10,300)",
-      "data_retention_days": "int(1,365)",
+      "data_retention": "int(1,365)",
       "debug_mode": "bool"
+    }
+  },
+  "translations": {
+    "en": {
+      "configuration": {
+        "database": {
+          "name": "Database",
+          "description": "Configure your external MariaDB/MySQL database",
+          "fields": {
+            "host": {
+              "name": "Host",
+              "description": "The hostname or IP address of your database server"
+            },
+            "port": {
+              "name": "Port",
+              "description": "The port number of your database server (default: 3306)"
+            },
+            "name": {
+              "name": "Database Name",
+              "description": "The name of the database to use"
+            },
+            "username": {
+              "name": "Username",
+              "description": "Database user with necessary permissions"
+            },
+            "password": {
+              "name": "Password",
+              "description": "Password for the database user"
+            }
+          }
+        },
+        "mqtt": {
+          "name": "MQTT",
+          "description": "MQTT broker configuration",
+          "fields": {
+            "use_internal": {
+              "name": "Use Internal Broker",
+              "description": "Use the built-in MQTT broker (recommended)"
+            },
+            "external": {
+              "name": "External MQTT",
+              "description": "Configure external MQTT broker (if not using internal)",
+              "fields": {
+                "host": {
+                  "name": "Broker Host",
+                  "description": "The hostname or IP address of your MQTT broker"
+                },
+                "port": {
+                  "name": "Broker Port",
+                  "description": "The port number of your MQTT broker (default: 1883)"
+                },
+                "username": {
+                  "name": "Username",
+                  "description": "MQTT broker username (optional)"
+                },
+                "password": {
+                  "name": "Password",
+                  "description": "MQTT broker password (optional)"
+                }
+              }
+            }
+          }
+        },
+        "system": {
+          "name": "System",
+          "description": "General system settings",
+          "fields": {
+            "auto_refresh": {
+              "name": "Auto Refresh Interval",
+              "description": "How often to refresh data (in seconds, 10-300)"
+            },
+            "data_retention": {
+              "name": "Data Retention",
+              "description": "Number of days to keep historical data (1-365)"
+            },
+            "debug_mode": {
+              "name": "Debug Mode",
+              "description": "Enable debug logging"
+            }
+          }
+        }
+      }
     }
   }
 }
