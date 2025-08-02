@@ -59,18 +59,17 @@ RUN chown -R mysql:mysql /var/lib/mysql /var/log/mysql /var/run/mysqld \
     && chown -R mosquitto:mosquitto /mosquitto \
     && chmod -R 755 /app
 
-# Create startup script
-RUN echo '#!/bin/bash' > /usr/local/bin/startup.sh && \
-    echo 'exec /usr/local/bin/run.sh "$@"' >> /usr/local/bin/startup.sh && \
-    chmod +x /usr/local/bin/startup.sh
+# Copy start script
+COPY start.sh /usr/local/bin/start.sh
+RUN chmod +x /usr/local/bin/start.sh
 
-# Copy run script
-COPY run.sh /usr/local/bin/run.sh
-RUN chmod +x /usr/local/bin/run.sh
+# Create necessary directories and set permissions
+RUN mkdir -p /var/lib/mysql /var/log/mysql /var/run/mysqld && \
+    chown -R mysql:mysql /var/lib/mysql /var/log/mysql /var/run/mysqld && \
+    chmod -R 755 /var/lib/mysql /var/log/mysql /var/run/mysqld
 
 # Expose ports
 EXPOSE 3001 9001 3306
 
-# Start all services with supervisor
-ENTRYPOINT ["/usr/local/bin/startup.sh"]
-CMD [] 
+# Start all services
+ENTRYPOINT ["/usr/local/bin/start.sh"] 
