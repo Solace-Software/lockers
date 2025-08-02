@@ -1,0 +1,46 @@
+name: Gym Lockers System
+version: "3.0.0"
+slug: gym_lockers_new
+description: A management system for gym lockers with MQTT support
+url: https://github.com/Solace-Software/lockers
+arch:
+  - amd64
+init: false
+startup: application
+boot: auto
+options:
+  database:
+    host: ""
+    port: 3306
+    name: gym_lockers
+    username: ""
+    password: ""
+  mqtt:
+    use_internal: true
+    external:
+      host: ""
+      port: 1883
+      username: ""
+      password: ""
+schema:
+  database:
+    host: str?
+    port: port?
+    name: str
+    username: str?
+    password: password?
+  mqtt:
+    use_internal: bool
+    external:
+      host: str?
+      port: port?
+      username: str?
+      password: password?
+ports:
+  3001/tcp: 3001
+  1883/tcp: 1883
+  9001/tcp: 9001
+ports_description:
+  3001/tcp: Web interface
+  1883/tcp: MQTT broker
+  9001/tcp: MQTT WebSocket
