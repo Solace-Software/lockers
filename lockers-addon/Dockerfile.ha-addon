@@ -46,12 +46,9 @@ RUN mkdir -p /var/lib/mysql /var/log/mysql /var/run/mysqld \
 COPY mosquitto.conf /mosquitto/config/mosquitto.conf
 COPY supervisord.ha.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Create database initialization script
-RUN mkdir -p /docker-entrypoint-initdb.d \
-    && echo "CREATE DATABASE IF NOT EXISTS gym_lockers;" > /docker-entrypoint-initdb.d/init.sql \
-    && echo "CREATE USER IF NOT EXISTS 'gym_admin'@'localhost' IDENTIFIED BY 'secure_password_123';" >> /docker-entrypoint-initdb.d/init.sql \
-    && echo "GRANT ALL PRIVILEGES ON gym_lockers.* TO 'gym_admin'@'localhost';" >> /docker-entrypoint-initdb.d/init.sql \
-    && echo "FLUSH PRIVILEGES;" >> /docker-entrypoint-initdb.d/init.sql
+# Copy database initialization script
+COPY init-db.sh /usr/local/bin/init-db.sh
+RUN chmod +x /usr/local/bin/init-db.sh
 
 # Create MQTT user
 RUN mkdir -p /mosquitto/config \
@@ -62,17 +59,18 @@ RUN chown -R mysql:mysql /var/lib/mysql /var/log/mysql /var/run/mysqld \
     && chown -R mosquitto:mosquitto /mosquitto \
     && chmod -R 755 /app
 
-# Copy run script and make it the entrypoint
+# Create startup script
+RUN echo '#!/bin/bash' > /usr/local/bin/startup.sh && \
+    echo 'exec /usr/local/bin/run.sh "$@"' >> /usr/local/bin/startup.sh && \
+    chmod +x /usr/local/bin/startup.sh
+
+# Copy run script
 COPY run.sh /usr/local/bin/run.sh
-RUN chmod a+x /usr/local/bin/run.sh && \
-    rm -f /usr/local/bin/docker-entrypoint.sh && \
-    rm -f /usr/bin/docker-entrypoint.sh && \
-    rm -f /bin/docker-entrypoint.sh && \
-    ln -s /usr/local/bin/run.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/run.sh
 
 # Expose ports
 EXPOSE 3001 9001 3306
 
 # Start all services with supervisor
-ENTRYPOINT ["/usr/local/bin/run.sh"]
+ENTRYPOINT ["/usr/local/bin/startup.sh"]
 CMD [] 
