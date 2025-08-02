@@ -1,3 +1,4 @@
-name: Gym Locker System Repository
-url: https://github.com/Solace-Software/lockers
-maintainer: Solace Software
+name: "Gym Locker System Repository"
+url: "https://github.com/Solace-Software/lockers"
+maintainer: "Solace Software <support@solace-software.com>"
+slug: "ha_gym_lockers_repository"
