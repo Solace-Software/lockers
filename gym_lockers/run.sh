@@ -6,17 +6,17 @@ check_config() {
     bashio::log.info "Validating configuration..."
     
     # Check database configuration
-    if ! bashio::config.exists 'database.host'; then
+    if ! bashio::config.has_value 'database.host'; then
         bashio::log.error "Database host not configured"
         return 1
     fi
     
-    if ! bashio::config.exists 'database.username'; then
+    if ! bashio::config.has_value 'database.username'; then
         bashio::log.error "Database username not configured"
         return 1
     fi
     
-    if ! bashio::config.exists 'database.password'; then
+    if ! bashio::config.has_value 'database.password'; then
         bashio::log.error "Database password not configured"
         return 1
     fi
@@ -24,7 +24,7 @@ check_config() {
     # Check MQTT configuration
     if ! bashio::config.true 'mqtt.use_internal'; then
         # External MQTT - validate required fields
-        if ! bashio::config.exists 'mqtt.external_host'; then
+        if ! bashio::config.has_value 'mqtt.external.host'; then
             bashio::log.error "External MQTT host not configured"
             return 1
         fi
@@ -37,6 +37,7 @@ check_config() {
 setup_mqtt() {
     if bashio::config.true 'mqtt.use_internal'; then
         bashio::log.info "Using internal MQTT broker"
+        export MQTT_ENABLED="true"
         export MQTT_HOST="localhost"
         export MQTT_PORT="1883"
         export MQTT_USERNAME=""
@@ -44,13 +45,14 @@ setup_mqtt() {
         
         # Start internal MQTT broker
         bashio::log.info "Starting internal MQTT broker..."
-        mosquitto -c /etc/mosquitto/mosquitto.conf &
+        mosquitto -c /mosquitto/config/mosquitto.conf &
     else
         bashio::log.info "Using external MQTT broker"
-        export MQTT_HOST=$(bashio::config 'mqtt.external_host')
-        export MQTT_PORT=$(bashio::config 'mqtt.external_port')
-        export MQTT_USERNAME=$(bashio::config 'mqtt.external_username')
-        export MQTT_PASSWORD=$(bashio::config 'mqtt.external_password')
+        export MQTT_ENABLED="true"
+        export MQTT_HOST=$(bashio::config 'mqtt.external.host')
+        export MQTT_PORT=$(bashio::config 'mqtt.external.port')
+        export MQTT_USERNAME=$(bashio::config 'mqtt.external.username')
+        export MQTT_PASSWORD=$(bashio::config 'mqtt.external.password')
     fi
 }
 
@@ -60,9 +62,7 @@ main() {
 
     # Check configuration
     if ! check_config; then
-        bashio::log.error "Invalid configuration - please check your addon configuration"
-        bashio::log.error "The addon will not start until the configuration is valid"
-        exit 1
+        bashio::exit.nok "Invalid configuration"
     fi
 
     # Export database configuration
@@ -77,14 +77,14 @@ main() {
 
     # Export system settings
     export SYSTEM_AUTO_REFRESH=$(bashio::config 'system.auto_refresh')
-    export SYSTEM_DATA_RETENTION=$(bashio::config 'system.data_retention_days')
+    export SYSTEM_DATA_RETENTION=$(bashio::config 'system.data_retention')
     export SYSTEM_DEBUG_MODE=$(bashio::config 'system.debug_mode')
 
     bashio::log.info "Configuration validated - starting services..."
 
-    # Start the application
-    cd /app
-    exec node server.js
+    # Start supervisord to manage services
+    bashio::log.info "Starting supervisord..."
+    exec /usr/bin/supervisord -n -c /etc/supervisor/conf.d/supervisord.conf
 }
 
 # Run main function

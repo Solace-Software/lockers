@@ -1,27 +1,21 @@
-# Multi-stage build for Home Assistant Addon All-in-One
-FROM node:18 AS frontend
-WORKDIR /frontend
-COPY client/package*.json ./client/
-RUN cd client && npm install
-COPY client ./client
-RUN cd client && npm run build
+ARG BUILD_FROM=ghcr.io/hassio-addons/base:14.0.0
+FROM ${BUILD_FROM}
 
-# Main Home Assistant addon stage
-FROM ghcr.io/hassio-addons/base:14.0.0
-
-# Install Node.js
-ENV NODE_VERSION=18.20.8
-RUN apk add --no-cache nodejs npm
+# Set shell
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Install system dependencies
-RUN apk add --no-cache \
-    mariadb \
-    mariadb-client \
-    mosquitto \
-    mosquitto-clients \
-    supervisor \
-    bash \
-    curl \
+RUN \
+    apk add --no-cache \
+        nodejs \
+        npm \
+        mariadb \
+        mariadb-client \
+        mosquitto \
+        mosquitto-clients \
+        supervisor \
+        bash \
+        curl \
     && rm -rf /var/cache/apk/*
 
 # Create application directory
@@ -34,42 +28,46 @@ RUN npm install --production
 # Copy application files
 COPY . .
 
-# Copy frontend build
-COPY --from=frontend /frontend/client/build ./client_build
-
 # Create necessary directories
-RUN mkdir -p /var/lib/mysql /var/log/mysql /var/run/mysqld \
-    && mkdir -p /mosquitto/data /mosquitto/log /mosquitto/config \
-    && mkdir -p /app/data /app/logs
+RUN \
+    mkdir -p \
+        /var/lib/mysql \
+        /var/log/mysql \
+        /var/run/mysqld \
+        /mosquitto/data \
+        /mosquitto/log \
+        /mosquitto/config \
+        /app/data \
+        /app/logs \
+    && chown -R mysql:mysql \
+        /var/lib/mysql \
+        /var/log/mysql \
+        /var/run/mysqld \
+    && chown -R mosquitto:mosquitto /mosquitto \
+    && chmod -R 755 /app
 
 # Copy configuration files
 COPY mosquitto.conf /mosquitto/config/mosquitto.conf
 COPY supervisord.ha.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Copy database initialization script
-COPY init-db.sh /usr/local/bin/init-db.sh
-RUN chmod +x /usr/local/bin/init-db.sh
+# Copy run script
+COPY run.sh /
+RUN chmod a+x /run.sh
 
-# Create MQTT user
-RUN mkdir -p /mosquitto/config \
-    && mosquitto_passwd -c /mosquitto/config/passwd gym_mqtt_user mqtt_password_123
+# Labels
+LABEL \
+    io.hass.name="Gym Lockers Management System" \
+    io.hass.description="A management system for gym lockers with MQTT support" \
+    io.hass.type="addon" \
+    io.hass.version="${BUILD_VERSION}" \
+    maintainer="Solace Software <support@solace.dev>" \
+    org.opencontainers.image.title="Gym Lockers Management System" \
+    org.opencontainers.image.description="A management system for gym lockers with MQTT support" \
+    org.opencontainers.image.vendor="Solace Software" \
+    org.opencontainers.image.authors="Solace Software <support@solace.dev>" \
+    org.opencontainers.image.licenses="MIT" \
+    org.opencontainers.image.url="https://github.com/Solace-Software/lockers" \
+    org.opencontainers.image.source="https://github.com/Solace-Software/lockers" \
+    org.opencontainers.image.documentation="https://github.com/Solace-Software/lockers/blob/main/README.md"
 
-# Set permissions
-RUN chown -R mysql:mysql /var/lib/mysql /var/log/mysql /var/run/mysqld \
-    && chown -R mosquitto:mosquitto /mosquitto \
-    && chmod -R 755 /app
-
-# Copy start script
-COPY start.sh /usr/local/bin/start.sh
-RUN chmod +x /usr/local/bin/start.sh
-
-# Create necessary directories and set permissions
-RUN mkdir -p /var/lib/mysql /var/log/mysql /var/run/mysqld && \
-    chown -R mysql:mysql /var/lib/mysql /var/log/mysql /var/run/mysqld && \
-    chmod -R 755 /var/lib/mysql /var/log/mysql /var/run/mysqld
-
-# Expose ports
-EXPOSE 3001 9001 3306
-
-# Start all services
-ENTRYPOINT ["/usr/local/bin/start.sh"] 
+CMD [ "/run.sh" ]
