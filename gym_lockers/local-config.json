@@ -1,0 +1,16 @@
+{
+  "db_host": "localhost",
+  "db_port": 3306,
+  "db_name": "gym_lockers",
+  "db_user": "gym_admin",
+  "db_password": "secure_password_123",
+  "mqtt_enabled": true,
+  "mqtt_host": "localhost",
+  "mqtt_port": 1883,
+  "system_settings": {
+    "auto_refresh": 30,
+    "data_retention_days": 90,
+    "backup_enabled": true,
+    "debug_mode": true
+  }
+}
