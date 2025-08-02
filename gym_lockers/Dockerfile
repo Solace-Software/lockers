@@ -1,47 +1,75 @@
-ARG BUILD_FROM
-FROM $BUILD_FROM
+# Multi-stage build for Home Assistant Addon All-in-One
+FROM node:18 AS frontend
+WORKDIR /frontend
+COPY client/package*.json ./client/
+RUN cd client && npm install
+COPY client ./client
+RUN cd client && npm run build
 
-# Install dependencies
+# Main Home Assistant addon stage
+FROM ghcr.io/hassio-addons/base:14.0.0
+
+# Install Node.js
+ENV NODE_VERSION=18.20.8
+RUN apk add --no-cache nodejs npm
+
+# Install system dependencies
 RUN apk add --no-cache \
-    nodejs \
-    npm \
-    mosquitto
+    mariadb \
+    mariadb-client \
+    mosquitto \
+    mosquitto-clients \
+    supervisor \
+    bash \
+    curl \
+    && rm -rf /var/cache/apk/*
 
-# Set working directory
+# Create application directory
 WORKDIR /app
 
-# Copy package files
+# Copy package files and install dependencies
 COPY package*.json ./
-
-# Install production dependencies
 RUN npm install --production
 
 # Copy application files
 COPY . .
 
-# Make scripts executable
-RUN chmod +x /app/run.sh
+# Copy frontend build
+COPY --from=frontend /frontend/client/build ./client_build
 
-# Setup mosquitto configuration
-RUN mkdir -p /etc/mosquitto && \
-    echo "listener 1883" > /etc/mosquitto/mosquitto.conf && \
-    echo "allow_anonymous true" >> /etc/mosquitto/mosquitto.conf
+# Create necessary directories
+RUN mkdir -p /var/lib/mysql /var/log/mysql /var/run/mysqld \
+    && mkdir -p /mosquitto/data /mosquitto/log /mosquitto/config \
+    && mkdir -p /app/data /app/logs
 
-# Set up Home Assistant addon environment
-ENV \
-    LANG="C.UTF-8" \
-    MYSQL_HOST="" \
-    MYSQL_DATABASE="gym_lockers" \
-    MYSQL_USER="" \
-    MYSQL_PASSWORD="" \
-    MYSQL_PORT="3306"
+# Copy configuration files
+COPY mosquitto.conf /mosquitto/config/mosquitto.conf
+COPY supervisord.ha.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Labels
-LABEL \
-    io.hass.name="Gym Lockers Management System" \
-    io.hass.description="A management system for gym lockers with MQTT support" \
-    io.hass.type="addon" \
-    io.hass.version="1.2.0"
+# Copy database initialization script
+COPY init-db.sh /usr/local/bin/init-db.sh
+RUN chmod +x /usr/local/bin/init-db.sh
 
-# Start the application
-CMD [ "/app/run.sh" ]
+# Create MQTT user
+RUN mkdir -p /mosquitto/config \
+    && mosquitto_passwd -c /mosquitto/config/passwd gym_mqtt_user mqtt_password_123
+
+# Set permissions
+RUN chown -R mysql:mysql /var/lib/mysql /var/log/mysql /var/run/mysqld \
+    && chown -R mosquitto:mosquitto /mosquitto \
+    && chmod -R 755 /app
+
+# Copy start script
+COPY start.sh /usr/local/bin/start.sh
+RUN chmod +x /usr/local/bin/start.sh
+
+# Create necessary directories and set permissions
+RUN mkdir -p /var/lib/mysql /var/log/mysql /var/run/mysqld && \
+    chown -R mysql:mysql /var/lib/mysql /var/log/mysql /var/run/mysqld && \
+    chmod -R 755 /var/lib/mysql /var/log/mysql /var/run/mysqld
+
+# Expose ports
+EXPOSE 3001 9001 3306
+
+# Start all services
+ENTRYPOINT ["/usr/local/bin/start.sh"] 
