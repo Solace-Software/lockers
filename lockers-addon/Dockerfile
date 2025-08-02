@@ -41,7 +41,7 @@ LABEL \
     io.hass.name="Gym Lockers Management System" \
     io.hass.description="A management system for gym lockers with MQTT support" \
     io.hass.type="addon" \
-    io.hass.version="1.0.0"
+    io.hass.version="1.2.0"
 
 # Start the application
 CMD [ "/app/run.sh" ]

@@ -1,8 +1,8 @@
 name: "Gym Lockers Management System"
-version: "1.0.0"
+version: "1.2.0"
 slug: "gym_lockers"
 description: "A management system for gym lockers with MQTT support"
-url: "https://github.com/yourusername/gym-lockers"
+url: "https://github.com/Solace-Software/lockers"
 arch:
   - armhf
   - armv7
