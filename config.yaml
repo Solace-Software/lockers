@@ -2,5 +2,5 @@ channel: stable
 addons:
   gym_lockers_v2:
     repository: Solace-Software/lockers
-    target: addons/gym_lockers
+    manifest: addon.yaml
     image: "{arch}-addon-gym_lockers_v2"
