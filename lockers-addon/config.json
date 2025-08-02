@@ -1,15 +1,14 @@
 {
   "name": "Solace Technologies - Lockers",
-  "version": "1.3.3",
+  "version": "1.3.4",
   "slug": "gym_locker_dashboard_all_in_one",
-  "description": "Complete gym locker management system with integrated MQTT broker and database. Option to use external MQTT broker. Built-in MQTT completely disabled when external MQTT is enabled. Everything in one addon - no external dependencies required.",
+  "description": "Complete gym locker management system with integrated MQTT broker and database. Option to use external MQTT broker. Built-in MQTT is internal only (no external port binding). Everything in one addon - no external dependencies required.",
   "repository": "https://github.com/Solace-Software/lockers",
   "startup": "services",
   "boot": "auto",
   "webui": "http://[HOST]:[PORT:3001]/",
   "ports": {
     "3001/tcp": 3001,
-    "1884/tcp": 1884,
     "9001/tcp": 9001,
     "3306/tcp": 3306
   },
