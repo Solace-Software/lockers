@@ -156,6 +156,33 @@ EOF
 if [ ! -f /var/lib/mysql/mysql ]; then
     bashio::log.info "Initializing database..."
     mysql_install_db --datadir=/var/lib/mysql --user=mysql
+    
+    # Start MariaDB temporarily to create the database and user
+    /usr/bin/mysqld_safe --datadir=/var/lib/mysql --user=mysql &
+    MYSQL_PID=$!
+    
+    # Wait for MariaDB to be ready
+    bashio::log.info "Waiting for MariaDB to start..."
+    for i in {1..30}; do
+        if mysql -u root -e "SELECT 1" >/dev/null 2>&1; then
+            break
+        fi
+        sleep 1
+    done
+    
+    # Create database and user
+    bashio::log.info "Creating database and user..."
+    mysql -u root << EOF
+CREATE DATABASE IF NOT EXISTS gym_lockers;
+CREATE USER IF NOT EXISTS 'gym_admin'@'localhost' IDENTIFIED BY 'secure_password_123';
+GRANT ALL PRIVILEGES ON gym_lockers.* TO 'gym_admin'@'localhost';
+FLUSH PRIVILEGES;
+EOF
+    
+    # Stop the temporary MariaDB instance
+    kill $MYSQL_PID
+    wait $MYSQL_PID
+    
     bashio::log.info "Database initialization completed"
 else
     bashio::log.info "Database already exists, skipping initialization"
@@ -164,10 +191,24 @@ fi
 # Update database password if provided
 if [ "$DB_PASSWORD" != "secure_password_123" ]; then
     bashio::log.info "Updating database password..."
-    # Wait for MySQL to be ready
-    sleep 5
-    mysql -u root -e "ALTER USER 'gym_admin'@'localhost' IDENTIFIED BY '$DB_PASSWORD';" 2>/dev/null || true
-    mysql -u root -e "FLUSH PRIVILEGES;" 2>/dev/null || true
+    # Start MariaDB temporarily to update password
+    /usr/bin/mysqld_safe --datadir=/var/lib/mysql --user=mysql &
+    MYSQL_PID=$!
+    
+    # Wait for MariaDB to be ready
+    for i in {1..30}; do
+        if mysql -u root -e "SELECT 1" >/dev/null 2>&1; then
+            break
+        fi
+        sleep 1
+    done
+    
+    mysql -u root -e "ALTER USER 'gym_admin'@'localhost' IDENTIFIED BY '$DB_PASSWORD';"
+    mysql -u root -e "FLUSH PRIVILEGES;"
+    
+    # Stop the temporary MariaDB instance
+    kill $MYSQL_PID
+    wait $MYSQL_PID
 fi
 
 # Update MQTT password if provided
