@@ -52,19 +52,19 @@ const addonConfig = getAddonConfig();
 
 // Database configuration
 const dbConfig = {
-  host: addonConfig.db_host || 'core-mariadb',
+  host: addonConfig.db_host || 'localhost',
   port: addonConfig.db_port ? parseInt(addonConfig.db_port) : 3306,
-  user: addonConfig.db_user || '',
-  password: addonConfig.db_password || '',
+  user: addonConfig.db_user || 'gym_admin',
+  password: addonConfig.db_password || 'secure_password_123',
   database: addonConfig.db_name || 'gym_lockers'
 };
 
 // MQTT configuration
 const mqttConfig = {
-  host: addonConfig.mqtt_host || 'core-mosquitto',
-  port: addonConfig.mqtt_port ? parseInt(addonConfig.mqtt_port) : 1883,
-  username: addonConfig.mqtt_username || undefined,
-  password: addonConfig.mqtt_password || undefined,
+  host: addonConfig.mqtt_host || 'localhost',
+  port: addonConfig.mqtt_port ? parseInt(addonConfig.mqtt_port) : 1884,
+  username: addonConfig.mqtt_username || 'gym_mqtt_user',
+  password: addonConfig.mqtt_password || 'mqtt_password_123',
   clientId: addonConfig.mqtt_client_id || `gym-admin-${Math.random().toString(16).slice(3)}`,
   websocketPort: addonConfig.mqtt_websocket_port ? parseInt(addonConfig.mqtt_websocket_port) : 9001,
   allowAnonymous: addonConfig.mqtt_allow_anonymous !== undefined ? addonConfig.mqtt_allow_anonymous : true,
