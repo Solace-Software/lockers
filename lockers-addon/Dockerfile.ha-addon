@@ -63,7 +63,7 @@ COPY run.sh /
 RUN chmod a+x /run.sh
 
 # Expose ports
-EXPOSE 3001 1883 9001 3306
+EXPOSE 3001 9001 3306
 
 # Start all services with supervisor
 CMD [ "/run.sh" ] 
