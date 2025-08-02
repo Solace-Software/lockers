@@ -9,6 +9,10 @@ RUN cd client && npm run build
 # Main Home Assistant addon stage
 FROM ghcr.io/hassio-addons/base:14.0.0
 
+# Install Node.js
+ENV NODE_VERSION=18.20.8
+RUN apk add --no-cache nodejs npm
+
 # Install system dependencies
 RUN apk add --no-cache \
     mariadb \

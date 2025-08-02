@@ -1,6 +1,6 @@
 {
   "name": "Gym Locker Admin Dashboard - All-in-One",
-  "version": "1.4.5",
+  "version": "1.4.6",
   "slug": "gym_locker_dashboard_all_in_one",
   "description": "Complete gym locker management system with integrated MQTT broker and database. Everything in one addon.",
   "repository": "https://github.com/Solace-Software/lockers",
