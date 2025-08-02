@@ -50,27 +50,47 @@ function getAddonConfig() {
 // Get configuration
 const addonConfig = getAddonConfig();
 
-// Database configuration
+// Check if external MQTT is enabled
+const useExternalMqtt = addonConfig.use_external_mqtt === true;
+
+// Database configuration (always built-in)
 const dbConfig = {
-  host: addonConfig.db_host || 'localhost',
-  port: addonConfig.db_port ? parseInt(addonConfig.db_port) : 3306,
-  user: addonConfig.db_user || 'gym_admin',
-  password: addonConfig.db_password || 'secure_password_123',
-  database: addonConfig.db_name || 'gym_lockers'
+  host: 'localhost',
+  port: 3306,
+  user: 'gym_admin',
+  password: 'secure_password_123',
+  database: 'gym_lockers'
 };
 
-// MQTT configuration
-const mqttConfig = {
-  host: addonConfig.mqtt_host || 'localhost',
-  port: addonConfig.mqtt_port ? parseInt(addonConfig.mqtt_port) : 1884,
-  username: addonConfig.mqtt_username || 'gym_mqtt_user',
-  password: addonConfig.mqtt_password || 'mqtt_password_123',
-  clientId: addonConfig.mqtt_client_id || `gym-admin-${Math.random().toString(16).slice(3)}`,
-  websocketPort: addonConfig.mqtt_websocket_port ? parseInt(addonConfig.mqtt_websocket_port) : 9001,
-  allowAnonymous: addonConfig.mqtt_allow_anonymous !== undefined ? addonConfig.mqtt_allow_anonymous : true,
-  maxConnections: addonConfig.mqtt_max_connections ? parseInt(addonConfig.mqtt_max_connections) : 100,
-  maxMessageSize: addonConfig.mqtt_max_message_size ? parseInt(addonConfig.mqtt_max_message_size) : 1024
-};
+// MQTT configuration based on external MQTT setting
+let mqttConfig;
+if (useExternalMqtt && addonConfig.external_mqtt_host) {
+  // Use external MQTT configuration
+  mqttConfig = {
+    host: addonConfig.external_mqtt_host,
+    port: addonConfig.external_mqtt_port ? parseInt(addonConfig.external_mqtt_port) : 1883,
+    username: addonConfig.external_mqtt_username || undefined,
+    password: addonConfig.external_mqtt_password || undefined,
+    clientId: addonConfig.external_mqtt_client_id || `gym-admin-external-${Math.random().toString(16).slice(3)}`,
+    websocketPort: 9001,
+    allowAnonymous: true,
+    maxConnections: 100,
+    maxMessageSize: 1024
+  };
+} else {
+  // Use built-in MQTT configuration
+  mqttConfig = {
+    host: 'localhost',
+    port: 1884,
+    username: 'gym_mqtt_user',
+    password: 'mqtt_password_123',
+    clientId: `gym-admin-builtin-${Math.random().toString(16).slice(3)}`,
+    websocketPort: 9001,
+    allowAnonymous: true,
+    maxConnections: 100,
+    maxMessageSize: 1024
+  };
+}
 
 // System settings
 const systemSettings = {
@@ -96,6 +116,8 @@ const securitySettings = {
 };
 
 // Debug: Print configurations
+console.log('📋 Configuration Summary:');
+console.log('Use External MQTT:', useExternalMqtt);
 console.log('DB_HOST:', dbConfig.host);
 console.log('DB_PORT:', dbConfig.port);
 console.log('DB_USER:', dbConfig.user);
