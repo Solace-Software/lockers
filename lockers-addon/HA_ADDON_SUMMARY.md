@@ -47,16 +47,10 @@ A complete gym locker management system designed specifically for Home Assistant
 - `system_backup_enabled`: Enable automatic backups
 - `system_debug_mode`: Enable debug mode
 
-### Notification Settings
-- `notifications_email_alerts`: Enable email alerts
-- `notifications_usage_reports`: Enable usage reports
-- `notifications_real_time_updates`: Enable real-time updates
-
-### Security Settings
-- `security_session_timeout`: Session timeout (5-480 minutes)
-- `security_password_policy`: Password policy (standard/strong/enterprise)
-- `security_two_factor_auth`: Enable two-factor authentication
-- `security_audit_logging`: Enable audit logging
+### Simplified Configuration
+- No notification settings
+- No security password options
+- Core system functionality only
 
 ## Installation
 

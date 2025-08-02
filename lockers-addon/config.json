@@ -1,6 +1,6 @@
 {
   "name": "Gym Locker Admin Dashboard",
-  "version": "1.4.1",
+  "version": "1.4.2",
   "slug": "gym_locker_dashboard",
   "description": "Complete gym locker management system with internal database and optional MQTT configuration. No external dependencies required - everything runs internally.",
   "repository": "https://github.com/Solace-Software/lockers",
@@ -25,14 +25,7 @@
     "system_auto_refresh": 30,
     "system_data_retention_days": 90,
     "system_backup_enabled": true,
-    "system_debug_mode": false,
-    "notifications_email_alerts": true,
-    "notifications_usage_reports": false,
-    "notifications_real_time_updates": true,
-    "security_session_timeout": 30,
-    "security_password_policy": "standard",
-    "security_two_factor_auth": false,
-    "security_audit_logging": true
+    "system_debug_mode": false
   },
   "schema": {
     "mqtt_enabled": "bool",
@@ -45,14 +38,7 @@
     "system_auto_refresh": "int(5,300)",
     "system_data_retention_days": "int(1,3650)",
     "system_backup_enabled": "bool",
-    "system_debug_mode": "bool",
-    "notifications_email_alerts": "bool",
-    "notifications_usage_reports": "bool",
-    "notifications_real_time_updates": "bool",
-    "security_session_timeout": "int(5,480)",
-    "security_password_policy": "list(standard|strong|enterprise)",
-    "security_two_factor_auth": "bool",
-    "security_audit_logging": "bool"
+    "system_debug_mode": "bool"
   },
   "map": [
     "data:rw"

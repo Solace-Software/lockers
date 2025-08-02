@@ -65,24 +65,10 @@ Click Open Web UI
 }
 ```
 
-### **Notification Settings**
-```json
-{
-  "notifications_email_alerts": true,       // Enable email alerts
-  "notifications_usage_reports": false,     // Enable usage reports
-  "notifications_real_time_updates": true   // Enable real-time updates
-}
-```
-
-### **Security Settings**
-```json
-{
-  "security_session_timeout": 30,           // Session timeout (minutes)
-  "security_password_policy": "standard",   // Password policy
-  "security_two_factor_auth": false,        // Enable 2FA
-  "security_audit_logging": true            // Enable audit logging
-}
-```
+### **Simplified Configuration**
+- No notification settings
+- No security password options
+- Core system functionality only
 
 ## 🌐 **Access Methods**
 

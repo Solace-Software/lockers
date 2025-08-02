@@ -24,13 +24,6 @@ if bashio::fs.file_exists "${CONFIG_PATH}"; then
     SYSTEM_DATA_RETENTION_DAYS=$(bashio::jq "${CONFIG}" '.system_data_retention_days // 90')
     SYSTEM_BACKUP_ENABLED=$(bashio::jq "${CONFIG}" '.system_backup_enabled // true')
     SYSTEM_DEBUG_MODE=$(bashio::jq "${CONFIG}" '.system_debug_mode // false')
-    NOTIFICATIONS_EMAIL_ALERTS=$(bashio::jq "${CONFIG}" '.notifications_email_alerts // true')
-    NOTIFICATIONS_USAGE_REPORTS=$(bashio::jq "${CONFIG}" '.notifications_usage_reports // false')
-    NOTIFICATIONS_REAL_TIME_UPDATES=$(bashio::jq "${CONFIG}" '.notifications_real_time_updates // true')
-    SECURITY_SESSION_TIMEOUT=$(bashio::jq "${CONFIG}" '.security_session_timeout // 30')
-    SECURITY_PASSWORD_POLICY=$(bashio::jq "${CONFIG}" '.security_password_policy // "standard"')
-    SECURITY_TWO_FACTOR_AUTH=$(bashio::jq "${CONFIG}" '.security_two_factor_auth // false')
-    SECURITY_AUDIT_LOGGING=$(bashio::jq "${CONFIG}" '.security_audit_logging // true')
 else
     bashio::log.warning "No configuration file found, using defaults"
     MQTT_ENABLED=false
@@ -44,13 +37,6 @@ else
     SYSTEM_DATA_RETENTION_DAYS=90
     SYSTEM_BACKUP_ENABLED=true
     SYSTEM_DEBUG_MODE=false
-    NOTIFICATIONS_EMAIL_ALERTS=true
-    NOTIFICATIONS_USAGE_REPORTS=false
-    NOTIFICATIONS_REAL_TIME_UPDATES=true
-    SECURITY_SESSION_TIMEOUT=30
-    SECURITY_PASSWORD_POLICY="standard"
-    SECURITY_TWO_FACTOR_AUTH=false
-    SECURITY_AUDIT_LOGGING=true
 fi
 
 # Create necessary directories
@@ -226,13 +212,6 @@ export SYSTEM_AUTO_REFRESH="$SYSTEM_AUTO_REFRESH"
 export SYSTEM_DATA_RETENTION_DAYS="$SYSTEM_DATA_RETENTION_DAYS"
 export SYSTEM_BACKUP_ENABLED="$SYSTEM_BACKUP_ENABLED"
 export SYSTEM_DEBUG_MODE="$SYSTEM_DEBUG_MODE"
-export NOTIFICATIONS_EMAIL_ALERTS="$NOTIFICATIONS_EMAIL_ALERTS"
-export NOTIFICATIONS_USAGE_REPORTS="$NOTIFICATIONS_USAGE_REPORTS"
-export NOTIFICATIONS_REAL_TIME_UPDATES="$NOTIFICATIONS_REAL_TIME_UPDATES"
-export SECURITY_SESSION_TIMEOUT="$SECURITY_SESSION_TIMEOUT"
-export SECURITY_PASSWORD_POLICY="$SECURITY_PASSWORD_POLICY"
-export SECURITY_TWO_FACTOR_AUTH="$SECURITY_TWO_FACTOR_AUTH"
-export SECURITY_AUDIT_LOGGING="$SECURITY_AUDIT_LOGGING"
 
 # Start supervisor to manage all services
 bashio::log.info "Starting supervisor..."

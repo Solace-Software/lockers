@@ -111,20 +111,7 @@ const systemSettings = {
   debugMode: addonConfig.system_debug_mode !== undefined ? addonConfig.system_debug_mode : false
 };
 
-// Notification settings
-const notificationSettings = {
-  emailAlerts: addonConfig.notifications_email_alerts !== undefined ? addonConfig.notifications_email_alerts : true,
-  usageReports: addonConfig.notifications_usage_reports !== undefined ? addonConfig.notifications_usage_reports : false,
-  realTimeUpdates: addonConfig.notifications_real_time_updates !== undefined ? addonConfig.notifications_real_time_updates : true
-};
-
-// Security settings
-const securitySettings = {
-  sessionTimeout: addonConfig.security_session_timeout ? parseInt(addonConfig.security_session_timeout) : 30,
-  passwordPolicy: addonConfig.security_password_policy || 'standard',
-  twoFactorAuth: addonConfig.security_two_factor_auth !== undefined ? addonConfig.security_two_factor_auth : false,
-  auditLogging: addonConfig.security_audit_logging !== undefined ? addonConfig.security_audit_logging : true
-};
+// Notification and security settings removed - simplified configuration
 
 // Debug: Print configurations
 console.log('📋 Configuration Summary:');
@@ -155,21 +142,10 @@ console.log('SYSTEM_DATA_RETENTION:', systemSettings.dataRetention);
 console.log('SYSTEM_BACKUP_ENABLED:', systemSettings.backupEnabled);
 console.log('SYSTEM_DEBUG_MODE:', systemSettings.debugMode);
 
-console.log('NOTIFICATIONS_EMAIL_ALERTS:', notificationSettings.emailAlerts);
-console.log('NOTIFICATIONS_USAGE_REPORTS:', notificationSettings.usageReports);
-console.log('NOTIFICATIONS_REAL_TIME_UPDATES:', notificationSettings.realTimeUpdates);
-
-console.log('SECURITY_SESSION_TIMEOUT:', securitySettings.sessionTimeout);
-console.log('SECURITY_PASSWORD_POLICY:', securitySettings.passwordPolicy);
-console.log('SECURITY_TWO_FACTOR_AUTH:', securitySettings.twoFactorAuth);
-console.log('SECURITY_AUDIT_LOGGING:', securitySettings.auditLogging);
-
 module.exports = {
   dbConfig,
   mqttConfig,
   mqttEnabled,
   systemSettings,
-  notificationSettings,
-  securitySettings,
   addonConfig
 }; 
