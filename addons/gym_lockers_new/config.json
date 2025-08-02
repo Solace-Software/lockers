@@ -6,6 +6,7 @@
   "arch": ["amd64"],
   "startup": "application",
   "boot": "auto",
+  "init": false,
   "options": {
     "database": {
       "host": "",
@@ -41,5 +42,15 @@
         "password": "password?"
       }
     }
+  },
+  "ports": {
+    "3001/tcp": 3001,
+    "1883/tcp": 1883,
+    "9001/tcp": 9001
+  },
+  "ports_description": {
+    "3001/tcp": "Web interface",
+    "1883/tcp": "MQTT broker",
+    "9001/tcp": "MQTT WebSocket"
   }
 }
