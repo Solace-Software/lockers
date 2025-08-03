@@ -1,0 +1,35 @@
+{
+  "database": {
+    "type": "mariadb",
+    "host": "localhost",
+    "port": 3306,
+    "name": "gym_lockers",
+    "user": "root",
+    "password": "",
+    "max_connections": 20,
+    "idle_timeout": 30000
+  },
+  "mqtt": {
+    "mode": "built-in",
+    "built_in": {
+      "port": 1883,
+      "persistence": true,
+      "username": "",
+      "password": "",
+      "allow_anonymous": true
+    },
+    "external": {
+      "host": "localhost",
+      "port": 1883,
+      "username": "",
+      "password": "",
+      "client_id": "gym_lockers_client"
+    }
+  },
+  "system": {
+    "auto_refresh": 30,
+    "data_retention_days": 90,
+    "backup_enabled": true,
+    "debug_mode": true
+  }
+}

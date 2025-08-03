@@ -6,8 +6,8 @@ const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
 
-// Import database
-const Database = require('./database');
+// Import storage
+const StorageFactory = require('./storage');
 const settingsRoutes = require('./routes/settings');
 
 const app = express();
@@ -22,6 +22,8 @@ app.use(cors(corsOptions));
 
 // Middleware
 app.use(express.json());
+
+// Routes will be registered after db initialization
 // app.use(express.static(path.join(__dirname, 'client/build'))); // Disabled for development
 
 // MQTT Configuration - Dynamic settings from API
@@ -57,13 +59,16 @@ let isConnected = false;
 // --- MQTT Status Tracking ---
 let mqttStatus = 'disconnected'; // 'connected' | 'disconnected'
 
-// Database instance
-const db = new Database();
+// Storage instance
+let db = null;
 
 // In-memory cache for frequently accessed data (optional optimization)
 let lockersCache = [];
 let usersCache = [];
 let groupsCache = [];
+
+// Track MQTT subscriptions
+let mqttSubscriptions = new Set();
 
 // Offline detection interval (5 minutes)
 const OFFLINE_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
@@ -84,19 +89,19 @@ function connectMQTT() {
 
   try {
     if (mqttClient) {
-      console.log('🧹 Cleaning up existing MQTT client...');
+      console.log('Cleaning up existing MQTT client...');
       try {
         mqttClient.removeAllListeners();
         mqttClient.end(true);
       } catch (error) {
-        console.error('⚠️ Error cleaning up MQTT client:', error);
+        console.error('Warning: Error cleaning up MQTT client:', error);
       }
       mqttClient = null;
       isConnected = false;
     }
 
     const currentMqttConfig = systemSettings.mqttConfig;
-    console.log('🔌 Connecting to MQTT broker...', {
+    console.log('Connecting to MQTT broker...', {
       host: currentMqttConfig.host,
       port: currentMqttConfig.port,
       clientId: currentMqttConfig.clientId
@@ -119,7 +124,7 @@ function connectMQTT() {
       isConnecting = false;
       isConnected = false;
       mqttStatus = 'disconnected';
-      console.error('❌ MQTT connection error:', error.message);
+      console.error('MQTT connection error:', error.message);
       scheduleMqttReconnect();
     });
 
@@ -128,12 +133,12 @@ function connectMQTT() {
       isConnected = true;
       mqttStatus = 'connected';
       mqttReconnectDelay = 5000; // Reset delay on success
-      console.log('✅ Connected to MQTT broker');
+      console.log('Connected to MQTT broker');
       mqttClient.subscribe('#', (err) => {
         if (err) {
-          console.error('❌ Failed to subscribe to topics:', err);
+          console.error('Failed to subscribe to topics:', err);
         } else {
-          console.log('📡 Subscribed to: # (all topics)');
+          console.log('Subscribed to: # (all topics)');
         }
       });
     });
@@ -144,7 +149,7 @@ function connectMQTT() {
       isConnecting = false;
       mqttStatus = 'disconnected';
       if (wasConnected) {
-        console.log('🔌 MQTT connection closed');
+        console.log('MQTT connection closed');
       }
       scheduleMqttReconnect();
     });
@@ -153,7 +158,7 @@ function connectMQTT() {
       isConnected = false;
       isConnecting = false;
       mqttStatus = 'disconnected';
-      console.log('🔌 MQTT disconnected');
+      console.log('MQTT disconnected');
       scheduleMqttReconnect();
     });
 
@@ -172,18 +177,51 @@ function connectMQTT() {
       scheduleMqttReconnect();
     });
 
-    mqttClient.on('message', handleMqttMessage);
+    mqttClient.on('message', (topic, message) => {
+      // Check if we should emit this message based on subscriptions
+      const shouldEmitMessage = mqttSubscriptions.has(topic) || mqttSubscriptions.has('#');
+      
+      // Handle test messages for frontend feedback (only if subscribed)
+      if (topic === 'test/connection') {
+        console.log('Test message received:', message.toString());
+        if (shouldEmitMessage) {
+          io.emit('test-message-received', {
+            topic,
+            message: message.toString(),
+            timestamp: new Date()
+          });
+          console.log('Test message emitted to frontend (subscribed)');
+        } else {
+          console.log('🚫 Test message not emitted (not subscribed to test/connection)');
+        }
+      } else {
+        // Handle other MQTT messages
+        if (shouldEmitMessage) {
+          console.log(`Live MQTT message on subscribed topic ${topic}:`, message.toString());
+          io.emit('mqtt-message-received', {
+            topic,
+            message: message.toString(),
+            timestamp: new Date()
+          });
+        } else {
+          console.log(`MQTT message on unsubscribed topic ${topic}:`, message.toString());
+        }
+      }
+      
+      // Process the message for locker management
+      handleMqttMessage(topic, message);
+    });
 
     // Catch unhandled errors to prevent crash
     mqttClient.on('uncaughtException', (err) => {
-      console.error('❌ Uncaught MQTT Exception:', err);
+      console.error('Uncaught MQTT Exception:', err);
       scheduleMqttReconnect();
     });
 
   } catch (error) {
     isConnecting = false;
     isConnected = false;
-    console.error('❌ Failed to create MQTT client:', error);
+    console.error('Failed to create MQTT client:', error);
     scheduleMqttReconnect();
   }
 }
@@ -202,24 +240,24 @@ function scheduleMqttReconnect() {
 // Handle MQTT messages - now handles Rubik locker protocol
 async function handleMqttMessage(topic, message) {
   if (!topic || !message) {
-    console.error('❌ Invalid MQTT message received:', { topic, message });
+    console.error('Invalid MQTT message received:', { topic, message });
     return;
   }
 
   try {
-    console.log(`📨 MQTT Message received on ${topic}: ${message.toString()}`);
+    console.log(`MQTT Message received on ${topic}: ${message.toString()}`);
     
     let payload;
     try {
       payload = JSON.parse(message.toString());
-      console.log(`🔍 Processing topic: ${topic}`);
-      console.log(`📋 Payload:`, payload);
+      console.log(`Processing topic: ${topic}`);
+      console.log(`Payload:`, payload);
     } catch (error) {
       // If not JSON, still log the raw message
-      console.log(`📨 Raw MQTT Message on ${topic}: ${message.toString()}`);
+      console.log(`Raw MQTT Message on ${topic}: ${message.toString()}`);
       payload = { raw: message.toString() };
-      console.log(`🔍 Processing topic: ${topic}`);
-      console.log(`📋 Payload:`, payload);
+      console.log(`Processing topic: ${topic}`);
+      console.log(`Payload:`, payload);
     }
   
   // Save MQTT message to database
@@ -239,7 +277,7 @@ async function handleMqttMessage(topic, message) {
   const baseTopic = topicParts[0]; // First part is usually the device/locker name
   const action = topicParts[1]; // Second part is usually the action (sync, cmd, etc.)
   
-  console.log(`📊 Topic parts: [${topicParts.join(', ')}]`);
+  console.log(`Topic parts: [${topicParts.join(', ')}]`);
   
   // Handle heartbeat messages for auto-discovery
   if (payload && payload.type === 'heartbeat' && payload.controllertype === 'locker') {
@@ -919,6 +957,16 @@ function parseLockerName(lockerHostname, lockNumber) {
 // Note: updateLockerStatusFromUsers function removed as it was unused and could cause errors
 
 // API Routes
+app.get('/api/status', (req, res) => {
+  const storageInfo = db.getStorageInfo();
+  res.json({ 
+    mqtt: mqttStatus,
+    storage: storageInfo,
+    config: systemSettings.mqttConfig,
+    connected: isConnected
+  });
+});
+
 app.get('/api/lockers', async (req, res) => {
   try {
     const lockers = await db.getAllLockers();
@@ -1956,10 +2004,14 @@ const PORT = process.env.PORT || 3001;
 // Function to start server with proper error handling
 async function startServer() {
   try {
-    // Connect to database
-    console.log('🔌 Connecting to database...');
-    await db.connect();
-    console.log('✅ Database connected successfully');
+    // Force memory store
+    process.env.USE_DATABASE = 'false';
+    
+    // Initialize storage
+    db = await StorageFactory.createStorage();
+    
+    // Register routes that need database access
+    app.use('/api/settings', settingsRoutes(db));
     
     // Load initial data
     console.log('📊 Loading initial data...');
@@ -2367,6 +2419,73 @@ app.put('/api/users/:id', async (req, res) => {
 });
 
 // --- MQTT Status API Endpoint ---
+// Get MQTT listeners
+app.get('/api/mqtt/listeners', (req, res) => {
+  try {
+    console.log('📡 Getting MQTT listeners');
+    res.json([]);
+  } catch (error) {
+    console.error('❌ Error getting MQTT listeners:', error);
+    res.status(500).json({ error: 'Failed to get MQTT listeners' });
+  }
+});
+
+// Subscribe to MQTT topic
+app.post('/api/mqtt/subscribe', (req, res) => {
+  try {
+    const { topic } = req.body;
+    
+    if (!topic) {
+      return res.status(400).json({ error: 'Topic is required' });
+    }
+
+    if (!mqttClient || !isConnected) {
+      return res.status(503).json({ error: 'MQTT client not connected' });
+    }
+
+    mqttClient.subscribe(topic, (err) => {
+      if (err) {
+        console.error('Error subscribing to topic:', err);
+        return res.status(500).json({ error: 'Failed to subscribe to topic' });
+      }
+      mqttSubscriptions.add(topic);
+      console.log('📡 Subscribed to:', topic);
+      res.json({ success: true });
+    });
+  } catch (error) {
+    console.error('Error in subscribe endpoint:', error);
+    res.status(500).json({ error: 'Failed to subscribe to topic' });
+  }
+});
+
+// Unsubscribe from MQTT topic
+app.post('/api/mqtt/unsubscribe', (req, res) => {
+  try {
+    const { topic } = req.body;
+    
+    if (!topic) {
+      return res.status(400).json({ error: 'Topic is required' });
+    }
+
+    if (!mqttClient || !isConnected) {
+      return res.status(503).json({ error: 'MQTT client not connected' });
+    }
+
+    mqttClient.unsubscribe(topic, (err) => {
+      if (err) {
+        console.error('Error unsubscribing from topic:', err);
+        return res.status(500).json({ error: 'Failed to unsubscribe from topic' });
+      }
+      mqttSubscriptions.delete(topic);
+      console.log('📡 Unsubscribed from:', topic);
+      res.json({ success: true });
+    });
+  } catch (error) {
+    console.error('Error in unsubscribe endpoint:', error);
+    res.status(500).json({ error: 'Failed to unsubscribe from topic' });
+  }
+});
+
 app.get('/api/status', (req, res) => {
   res.json({ mqtt: mqttStatus });
 });

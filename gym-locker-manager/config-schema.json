@@ -1,0 +1,113 @@
+{
+  "database": {
+    "type": {
+      "type": "string",
+      "enum": ["mariadb", "postgresql"],
+      "default": "mariadb",
+      "description": "Database type to use"
+    },
+    "host": {
+      "type": "string",
+      "default": "localhost",
+      "description": "Database host"
+    },
+    "port": {
+      "type": "number",
+      "default": 3306,
+      "description": "Database port (default: 3306 for MariaDB, 5432 for PostgreSQL)"
+    },
+    "name": {
+      "type": "string",
+      "default": "gym_lockers",
+      "description": "Database name"
+    },
+    "user": {
+      "type": "string",
+      "description": "Database user"
+    },
+    "password": {
+      "type": "string",
+      "description": "Database password"
+    },
+    "max_connections": {
+      "type": "number",
+      "default": 20,
+      "description": "Maximum number of database connections"
+    },
+    "idle_timeout": {
+      "type": "number",
+      "default": 30000,
+      "description": "Database connection idle timeout in milliseconds"
+    }
+  },
+  "mqtt": {
+    "mode": {
+      "type": "string",
+      "enum": ["built-in", "external"],
+      "default": "built-in",
+      "description": "MQTT broker mode"
+    },
+    "built_in": {
+      "enabled": {
+        "type": "boolean",
+        "default": true,
+        "description": "Enable built-in MQTT broker"
+      },
+      "port": {
+        "type": "number",
+        "default": 1883,
+        "description": "Port for built-in MQTT broker"
+      },
+      "persistence": {
+        "type": "boolean",
+        "default": true,
+        "description": "Enable message persistence for built-in broker"
+      }
+    },
+    "external": {
+      "host": {
+        "type": "string",
+        "description": "External MQTT broker host"
+      },
+      "port": {
+        "type": "number",
+        "default": 1883,
+        "description": "External MQTT broker port"
+      },
+      "username": {
+        "type": "string",
+        "description": "External MQTT broker username"
+      },
+      "password": {
+        "type": "string",
+        "description": "External MQTT broker password"
+      },
+      "client_id": {
+        "type": "string",
+        "description": "Client ID for external MQTT broker"
+      }
+    }
+  },
+  "system": {
+    "auto_refresh": {
+      "type": "number",
+      "default": 30,
+      "description": "Auto refresh interval in seconds"
+    },
+    "data_retention_days": {
+      "type": "number",
+      "default": 90,
+      "description": "Number of days to retain data"
+    },
+    "backup_enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Enable automatic backups"
+    },
+    "debug_mode": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enable debug mode"
+    }
+  }
+}

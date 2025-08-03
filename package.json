@@ -1,45 +1,23 @@
 {
-  "name": "gym-locker-admin-dashboard",
+  "name": "gym-locker-system",
   "version": "1.0.0",
-  "description": "Admin dashboard for managing MQTT-based gym lockers",
-  "main": "server.js",
+  "description": "Gym Locker Management System",
+  "main": "index.js",
   "scripts": {
-    "dev": "concurrently \"npm run server-direct\" \"npm run client\"",
-    "server": "node start-server.js",
-    "server-dev": "nodemon server.js",
-    "server-direct": "node server.js",
-    "client": "cd client && npm start",
-    "build": "cd client && npm run build",
-    "install-all": "npm install && cd client && npm install",
-    "start": "node start-server.js",
-    "clean-start": "node start-server.js",
-    "cleanup": "node cleanup-ports.js"
+    "start": "node scripts/start.js",
+    "start:force": "node scripts/start.js --force",
+    "start:backend": "node gym_lockers/server.js",
+    "start:frontend": "cd gym_lockers/client && npm start",
+    "install:all": "npm install && cd gym_lockers && npm install && cd client && npm install",
+    "build": "cd gym_lockers/client && npm run build",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "author": "",
+  "license": "ISC",
   "dependencies": {
-    "axios": "^1.10.0",
-    "bcrypt": "^6.0.0",
-    "cors": "^2.8.5",
-    "dotenv": "^16.6.1",
-    "express": "^4.18.2",
-    "kill-port": "^2.0.1",
-    "moment": "^2.29.4",
-    "mqtt": "^5.3.5",
-    "pg": "^8.16.3",
-    "socket.io": "^4.7.4",
-    "sqlite3": "^5.1.7",
-    "uuid": "^9.0.1"
-  },
-  "devDependencies": {
-    "concurrently": "^8.2.2",
-    "nodemon": "^3.0.2"
-  },
-  "keywords": [
-    "mqtt",
-    "gym",
-    "locker",
-    "admin",
-    "dashboard"
-  ],
-  "author": "Your Name",
-  "license": "MIT"
+    "chalk": "^4.1.2",
+    "dotenv": "^16.3.1",
+    "find-process": "^1.4.7",
+    "tcp-port-used": "^1.0.2"
+  }
 }
