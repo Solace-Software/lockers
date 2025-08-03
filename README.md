@@ -1,215 +1,75 @@
-# Gym Locker Admin Dashboard
+# Gym Locker Management System - Home Assistant Addon
 
-A modern admin dashboard for managing MQTT-based gym lockers with real-time monitoring, user management, and analytics.
+A comprehensive gym locker management system with RFID integration, real-time monitoring, and automatic locker assignment capabilities.
 
 ## Features
 
-- 🔒 **Real-time Locker Management** - Monitor and control lockers via MQTT
-- 👥 **User Management** - Manage gym members and locker assignments
-- 📊 **Analytics Dashboard** - Usage statistics and performance metrics
-- ⚙️ **System Settings** - MQTT configuration and system preferences
-- 🔄 **Live Updates** - Real-time status updates via WebSocket
-- 📱 **Responsive Design** - Works on desktop and mobile devices
-
-## Tech Stack
-
-### Backend
-- **Node.js** with Express.js
-- **MQTT** for IoT communication
-- **Socket.IO** for real-time updates
-- **CORS** for cross-origin requests
-
-### Frontend
-- **React 18** with functional components
-- **Tailwind CSS** for styling
-- **Recharts** for data visualization
-- **Lucide React** for icons
-- **Axios** for API calls
-
-## Prerequisites
-
-- Node.js (v16 or higher)
-- npm or yarn
-- MQTT Broker (optional for testing)
+- **RFID Integration**: Automatic locker assignment based on RFID card scans
+- **Real-time Monitoring**: Live updates via WebSocket connections
+- **MQTT Support**: Integration with IoT devices and Home Assistant MQTT broker
+- **Database Management**: PostgreSQL or SQLite support with automatic fallback
+- **Web Interface**: Modern React-based dashboard for locker management
+- **User Management**: Track locker assignments and usage patterns
+- **Settings Management**: Configure MQTT, database, and system settings
 
 ## Installation
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd gym-locker-admin-dashboard
-   ```
+1. Add this repository to your Home Assistant addon store
+2. Install the "Gym Locker Management System" addon
+3. Configure the addon options (see Configuration section below)
+4. Start the addon
 
-2. **Install backend dependencies**
-   ```bash
-   npm install
-   ```
+## Configuration
 
-3. **Install frontend dependencies**
-   ```bash
-   cd client
-   npm install
-   cd ..
-   ```
+### Basic Options
 
-4. **Configure environment variables**
-   Create a `.env` file in the root directory:
-   ```env
-   MQTT_HOST=localhost
-   MQTT_PORT=1883
-   MQTT_USERNAME=your_username
-   MQTT_PASSWORD=your_password
-   PORT=5000
-   NODE_ENV=development
-   ```
+- **database_url**: Database connection string (optional, defaults to SQLite)
+- **mqtt_host**: MQTT broker hostname (default: localhost)
+- **mqtt_port**: MQTT broker port (default: 1883)
+- **mqtt_username**: MQTT username (optional)
+- **mqtt_password**: MQTT password (optional)
+- **use_internal_mqtt**: Use Home Assistant's internal MQTT broker (default: true)
+- **log_level**: Logging level (debug, info, warning, error)
 
-## Running the Application
+### Example Configuration
 
-### Development Mode
+```yaml
+database_url: "postgres://user:password@addon_postgres:5432/lockers"
+mqtt_host: "core-mosquitto"
+mqtt_port: 1883
+mqtt_username: ""
+mqtt_password: ""
+use_internal_mqtt: true
+log_level: "info"
+```
 
-1. **Start the backend server**
-   ```bash
-   npm run server
-   ```
-   The server will start on http://localhost:5000
+## Usage
 
-2. **Start the frontend development server**
-   ```bash
-   cd client
-   npm start
-   ```
-   The React app will start on http://localhost:3000
-
-### Production Mode
-
-1. **Build the frontend**
-   ```bash
-   cd client
-   npm run build
-   cd ..
-   ```
-
-2. **Start the production server**
-   ```bash
-   npm start
-   ```
+1. Access the web interface at `http://homeassistant.local:3001`
+2. Configure your MQTT settings in the Settings page
+3. Set up your lockers in the Lockers management section
+4. Register users and their RFID cards
+5. Monitor locker usage in real-time
 
 ## MQTT Topics
 
 The system uses the following MQTT topics:
 
-- `gym/lockers/{lockerId}/status` - Locker status updates
-- `gym/lockers/{lockerId}/command` - Commands sent to lockers
-- `gym/lockers/{lockerId}/response` - Responses from lockers
+- `rfid/scan` - RFID card scan events
+- `locker/{id}/unlock` - Unlock specific locker
+- `locker/{id}/status` - Locker status updates
+- `test/connection` - Test MQTT connectivity
 
-### Example MQTT Messages
+## Hardware Requirements
 
-**Status Update:**
-```json
-{
-  "status": "occupied",
-  "userId": "user-123",
-  "timestamp": "2024-01-15T10:30:00Z"
-}
-```
-
-**Command:**
-```json
-{
-  "command": "unlock",
-  "timestamp": "2024-01-15T10:30:00Z"
-}
-```
-
-## API Endpoints
-
-### Lockers
-- `GET /api/lockers` - Get all lockers
-- `POST /api/lockers` - Create a new locker
-- `PUT /api/lockers/:id` - Update a locker
-- `DELETE /api/lockers/:id` - Delete a locker
-- `POST /api/lockers/:id/command` - Send command to locker
-
-### Users
-- `GET /api/users` - Get all users
-- `POST /api/users` - Create a new user
-- `PUT /api/users/:id` - Update a user
-- `DELETE /api/users/:id` - Delete a user
-
-### Analytics
-- `GET /api/analytics/usage` - Get usage statistics
-
-## Project Structure
-
-```
-gym-locker-admin-dashboard/
-├── server.js                 # Main server file
-├── package.json             # Backend dependencies
-├── .env                     # Environment variables
-├── client/                  # React frontend
-│   ├── public/
-│   │   ├── components/      # Reusable components
-│   │   ├── pages/          # Page components
-│   │   ├── contexts/       # React contexts
-│   │   └── index.js        # App entry point
-│   └── package.json        # Frontend dependencies
-└── README.md
-```
-
-## Features in Detail
-
-### Dashboard
-- Real-time overview of all lockers
-- Utilization statistics
-- Quick actions for common tasks
-- Live status updates
-
-### Locker Management
-- Add, edit, and delete lockers
-- Send commands (lock, unlock, maintenance)
-- Filter by status and search functionality
-- Real-time status monitoring
-
-### User Management
-- Manage gym members
-- Assign lockers to users
-- Track membership types
-- User activity history
-
-### Analytics
-- Usage trends and patterns
-- Performance metrics
-- Location-based statistics
-- Export capabilities
-
-### Settings
-- MQTT configuration
-- Notification preferences
-- System preferences
-- Security settings
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
-## License
-
-MIT License - see LICENSE file for details
+- RFID reader compatible with your RFID cards
+- Electronic door locks controllable via MQTT
+- Network connectivity for MQTT communication
 
 ## Support
 
-For support and questions, please open an issue on GitHub.
+For issues, feature requests, or contributions, please visit the [GitHub repository](https://github.com/Solace-Software/lockers).
 
----
+## License
 
-**Note:** This is a demo application. For production use, consider adding:
-- Database integration (PostgreSQL, MongoDB)
-- Authentication and authorization
-- SSL/TLS encryption
-- Rate limiting
-- Logging and monitoring
-- Backup and recovery procedures 
+This project is licensed under the MIT License.
