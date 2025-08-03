@@ -4,17 +4,14 @@ slug: "gym-locker-manager"
 description: "A comprehensive gym locker management system with RFID integration and real-time monitoring"
 url: "https://github.com/Solace-Software/lockers"
 arch:
-  - armhf
-  - armv7
   - aarch64
   - amd64
-  - i386
+  - armhf
+  - armv7
 startup: services
 boot: auto
 init: false
-stage: stable
 hassio_api: true
-auth_api: true
 homeassistant_api: false
 ports:
   3001/tcp: 3001
@@ -36,4 +33,3 @@ schema:
   mqtt_password: "password?"
   use_internal_mqtt: "bool"
   log_level: "list(debug|info|warning|error)?"
-image: "ghcr.io/solace-software/gym-locker-manager"
