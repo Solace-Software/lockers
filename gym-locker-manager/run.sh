@@ -36,7 +36,7 @@ fi
 mkdir -p /data
 
 # Change to app directory
-cd /app/gym_lockers
+cd /app
 
 # Start the application
 bashio::log.info "Starting Gym Locker Management System..."
