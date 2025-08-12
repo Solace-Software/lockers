@@ -1,5 +1,5 @@
 name: "Gym Locker Add-ons"
 url: "https://github.com/Solace-Software/lockers"
-maintainer: "Solace Software"
+maintainer: "Solace Software <info@solace-software.com>"
 slug: "gym_lockers_repository"
 manifest: "addon.yaml"
