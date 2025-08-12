@@ -6,6 +6,12 @@
 | ------- | ------------------ |
 | 2.0.x   | :white_check_mark: |
 
+## Current Security Status
+
+**Total Vulnerabilities**: 9 (3 moderate, 6 high)  
+**Last Updated**: December 2024  
+**Status**: ✅ **Production Safe** - All vulnerabilities are in development dependencies only
+
 ## Known Vulnerabilities
 
 ### Development Dependencies (Non-Critical)
@@ -27,6 +33,13 @@ The following vulnerabilities are present in development dependencies and do not
   - **Impact**: Development server only
   - **Mitigation**: Not used in production builds
   - **Status**: Known issue in react-scripts ecosystem
+
+## Recently Resolved
+
+### ✅ Removed Critical Vulnerabilities (December 2024)
+- **Removed old `gym-locker-manager` directory** containing 26 vulnerabilities
+- **Eliminated 6 critical, 11 high, and 9 moderate vulnerabilities**
+- **Source**: Outdated MQTT broker package (`mosca`) with vulnerable dependencies
 
 ## Mitigation Strategies
 
