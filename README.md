@@ -1,19 +1,19 @@
-# 🏋️‍♂️ Gym Locker Management System
+# Gym Locker Management System
 
 A comprehensive management system for gym lockers with MQTT support, real-time monitoring, and automated locker assignment.
 
-## ✨ Features
+## Features
 
-- **🔐 Smart Locker Management**: RFID-based auto-assignment and unlocking
-- **📱 Modern Web Dashboard**: React-based admin interface with real-time updates
-- **📡 MQTT Integration**: Real-time communication for locker status and control
-- **👥 User Management**: Member profiles, group management, and access control
-- **📊 Analytics & Reporting**: Usage statistics, activity logs, and insights
-- **🔄 Auto-Discovery**: Automatic locker detection and configuration
-- **💓 Heartbeat Monitoring**: Real-time health checks for all connected devices
-- **🔧 Flexible Configuration**: Support for both internal and external MQTT brokers
+- **Smart Locker Management**: RFID-based auto-assignment and unlocking
+- **Modern Web Dashboard**: React-based admin interface with real-time updates
+- **MQTT Integration**: Real-time communication for locker status and control
+- **User Management**: Member profiles, group management, and access control
+- **Analytics & Reporting**: Usage statistics, activity logs, and insights
+- **Auto-Discovery**: Automatic locker detection and configuration
+- **Heartbeat Monitoring**: Real-time health checks for all connected devices
+- **Flexible Configuration**: Support for both internal and external MQTT brokers
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Option 1: Docker All-in-One (Recommended)
 
@@ -44,7 +44,7 @@ npm run client       # Frontend only
 2. Install the "Gym Lockers Management System" add-on
 3. Configure your settings and start the add-on
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
@@ -65,14 +65,14 @@ npm run client       # Frontend only
                        └─────────────────┘
 ```
 
-## 📋 Prerequisites
+## Prerequisites
 
 - **Node.js**: 18.x or higher
 - **Database**: MariaDB/MySQL 10.x or higher
 - **MQTT Broker**: Mosquitto (included in Docker setup)
 - **Docker**: 20.x or higher (for containerized deployment)
 
-## 🔧 Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -97,7 +97,7 @@ MQTT_PASSWORD=your_password
 - `gym_lockers/local-config.json` - Local development settings
 - `addon.yaml` - Home Assistant add-on configuration
 
-## 📚 API Endpoints
+## API Endpoints
 
 ### Core Endpoints
 
@@ -115,7 +115,7 @@ MQTT_PASSWORD=your_password
 - `gym/lockers/+/command` - Locker control commands
 - `gym/system/heartbeat` - System health monitoring
 
-## 🐳 Docker Deployment
+## Docker Deployment
 
 ### Build the Image
 
@@ -141,7 +141,7 @@ docker run -d \
 - **1883**: MQTT broker
 - **9001**: MQTT WebSocket
 
-## 🏠 Home Assistant Integration
+## Home Assistant Integration
 
 ### Repository Setup
 
@@ -175,7 +175,7 @@ system:
   debug_mode: false
 ```
 
-## 🛠️ Development
+## Development
 
 ### Project Structure
 
@@ -210,7 +210,7 @@ The system automatically creates the following tables:
 - `logs` - Activity and access logs
 - `mqtt_messages` - MQTT communication history
 
-## 🔒 Security Features
+## Security Features
 
 - **RFID Authentication**: Secure card-based access
 - **User Permissions**: Role-based access control
@@ -218,14 +218,14 @@ The system automatically creates the following tables:
 - **MQTT Security**: Username/password authentication
 - **Database Security**: Prepared statements and input validation
 
-## 📊 Monitoring & Analytics
+## Monitoring & Analytics
 
 - **Real-time Dashboard**: Live locker status and user activity
 - **Usage Statistics**: Peak hours, popular lockers, user patterns
 - **System Health**: MQTT connectivity, database status, device heartbeats
 - **Activity Logs**: Detailed records of all system interactions
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
@@ -233,20 +233,20 @@ The system automatically creates the following tables:
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🆘 Support
+## Support
 
 - **Documentation**: Check the [DOCS.md](addons/gym_lockers/DOCS.md) file
 - **Issues**: Report bugs and feature requests on GitHub
 - **Discussions**: Join the community discussions
 
-## 🏷️ Version
+## Version
 
 **Current Version**: 2.0.0
 
 ---
 
-**Built with ❤️ by Solace Software**
+**Built with love by Solace Software**

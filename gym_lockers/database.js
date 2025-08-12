@@ -106,7 +106,7 @@ class Database {
       if (result[0].count === 0) {
         const addColumnQuery = `ALTER TABLE users ADD COLUMN ${column.name} ${column.type}`;
         await conn.query(addColumnQuery);
-        console.log(`✅ Added column: ${column.name}`);
+        console.log(`Added column: ${column.name}`);
       }
     }
 
@@ -124,7 +124,7 @@ class Database {
         ALTER TABLE users ADD CONSTRAINT users_rfid_tag_unique UNIQUE (rfid_tag)
       `;
       await conn.query(addUniqueConstraintQuery);
-      console.log('✅ Added unique constraint on rfid_tag');
+              console.log('Added unique constraint on rfid_tag');
     }
 
     // Create indexes if they don't exist
@@ -139,11 +139,11 @@ class Database {
       try {
         const createIndexQuery = `CREATE INDEX ${index}`;
         await conn.query(createIndexQuery);
-        console.log(`✅ Created index: ${index}`);
+        console.log(` Created index: ${index}`);
       } catch (error) {
         // Index might already exist, which is fine
         if (!error.message.includes('Duplicate key name')) {
-          console.log(`⚠️ Index creation skipped: ${index}`);
+          console.log(` Index creation skipped: ${index}`);
         }
       }
     }
@@ -184,11 +184,11 @@ class Database {
       try {
         const createIndexQuery = `CREATE INDEX ${index}`;
         await conn.query(createIndexQuery);
-        console.log(`✅ Created index: ${index}`);
+        console.log(` Created index: ${index}`);
       } catch (error) {
         // Index might already exist, which is fine
         if (!error.message.includes('Duplicate key name')) {
-          console.log(`⚠️ Index creation skipped: ${index}`);
+          console.log(` Index creation skipped: ${index}`);
         }
       }
     }
@@ -260,11 +260,11 @@ class Database {
       try {
         const createIndexQuery = `CREATE INDEX ${index}`;
         await conn.query(createIndexQuery);
-        console.log(`✅ Created index: ${index}`);
+        console.log(` Created index: ${index}`);
       } catch (error) {
         // Index might already exist, which is fine
         if (!error.message.includes('Duplicate key name')) {
-          console.log(`⚠️ Index creation skipped: ${index}`);
+          console.log(` Index creation skipped: ${index}`);
         }
       }
     }
@@ -295,11 +295,11 @@ class Database {
       try {
         const createIndexQuery = `CREATE INDEX ${index}`;
         await conn.query(createIndexQuery);
-        console.log(`✅ Created index: ${index}`);
+        console.log(` Created index: ${index}`);
       } catch (error) {
         // Index might already exist, which is fine
         if (!error.message.includes('Duplicate key name')) {
-          console.log(`⚠️ Index creation skipped: ${index}`);
+          console.log(` Index creation skipped: ${index}`);
         }
       }
     }
@@ -326,7 +326,7 @@ class Database {
       console.error('❌ Transaction error:', error);
       try {
       await conn.query('ROLLBACK');
-        console.log('✅ Transaction rolled back');
+        console.log(' Transaction rolled back');
       } catch (rollbackError) {
         console.error('❌ Error rolling back transaction:', rollbackError);
       }
@@ -334,7 +334,7 @@ class Database {
     } finally {
       try {
       conn.release();
-        console.log('✅ Client released');
+        console.log(' Client released');
       } catch (releaseError) {
         console.error('❌ Error releasing client:', releaseError);
       }

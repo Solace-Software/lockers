@@ -342,7 +342,7 @@ function validateConfiguration(config) {
   const warnings = [];
   const recommendations = [];
 
-  console.log('🔍 Validating Gym Locker Admin Dashboard Configuration...\n');
+  console.log('Validating Gym Locker Admin Dashboard Configuration...\n');
 
   // Validate each field
   for (const [fieldName, rule] of Object.entries(validationRules)) {
@@ -357,17 +357,17 @@ function validateConfiguration(config) {
   const detectedScale = detectScale(config);
   const scaleInfo = scaleRecommendations[detectedScale];
 
-  console.log(`📊 Detected Scale: ${scaleInfo.name}`);
-  console.log(`📝 Description: ${scaleInfo.description}\n`);
+  console.log(`Detected Scale: ${scaleInfo.name}`);
+  console.log(`Description: ${scaleInfo.description}\n`);
 
-  console.log('📋 Requirements for this scale:');
+  console.log('Requirements for this scale:');
   for (const [requirement, value] of Object.entries(scaleInfo.requirements)) {
     console.log(`   • ${requirement}: ${value}`);
   }
   console.log('');
 
   // Check if current settings match recommendations
-  console.log('⚙️ Configuration Analysis:');
+  console.log('Configuration Analysis:');
   for (const [setting, recommendedValue] of Object.entries(scaleInfo.recommendedSettings)) {
     const currentValue = config[setting];
     if (currentValue !== undefined && currentValue !== recommendedValue) {
@@ -377,25 +377,25 @@ function validateConfiguration(config) {
 
   // Display results
   if (errors.length > 0) {
-    console.log('❌ Validation Errors:');
+    console.log('Validation Errors:');
     errors.forEach(error => console.log(`   • ${error}`));
     console.log('');
   }
 
   if (warnings.length > 0) {
-    console.log('⚠️  Warnings:');
+    console.log('Warnings:');
     warnings.forEach(warning => console.log(`   • ${warning}`));
     console.log('');
   }
 
   if (recommendations.length > 0) {
-    console.log('💡 Recommendations:');
+    console.log('Recommendations:');
     recommendations.forEach(rec => console.log(`   • ${rec}`));
     console.log('');
   }
 
   if (errors.length === 0 && warnings.length === 0 && recommendations.length === 0) {
-    console.log('✅ Configuration is valid and optimized for your scale!');
+    console.log('Configuration is valid and optimized for your scale!');
   }
 
   return {
@@ -423,16 +423,16 @@ function main() {
     try {
       if (fs.existsSync(source)) {
         config = JSON.parse(fs.readFileSync(source, 'utf8'));
-        console.log(`📋 Loaded configuration from: ${source}`);
+        console.log(`Loaded configuration from: ${source}`);
         break;
       }
     } catch (error) {
-      console.log(`⚠️  Could not load configuration from: ${source}`);
+      console.log(`Could not load configuration from: ${source}`);
     }
   }
 
   if (Object.keys(config).length === 0) {
-    console.log('❌ No configuration found. Please provide a configuration file.');
+    console.log('No configuration found. Please provide a configuration file.');
     console.log('Available sources:');
     console.log('   • /data/options.json (Home Assistant addon)');
     console.log('   • local-config.json (local development)');
@@ -447,7 +447,7 @@ function main() {
     console.log('❌ Configuration validation failed. Please fix the errors above.');
     process.exit(1);
   } else {
-    console.log('✅ Configuration validation completed successfully!');
+    console.log('Configuration validation completed successfully!');
     process.exit(0);
   }
 }

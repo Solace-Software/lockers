@@ -1,77 +1,67 @@
 #!/usr/bin/env node
 
-const { exec } = require('child_process');
-const path = require('path');
+const { execSync } = require('child_process');
+const killPort = require('kill-port');
 
-const SERVER_PORT = 3001;
+const PORT = 3001;
 
-console.log('🚀 Starting Gym Locker Admin Dashboard...\n');
-
-function killProcessOnPort(port) {
-  return new Promise((resolve) => {
-    console.log(`🔍 Checking for processes on port ${port}...`);
-    exec(`lsof -ti:${port}`, (error, stdout) => {
-      if (error || !stdout.trim()) {
-        console.log(`✅ Port ${port} is free`);
-        resolve();
-        return;
-      }
-      const pids = stdout.trim().split('\n');
-      console.log(`⚠️  Found ${pids.length} process(es) on port ${port}, killing them...`);
-      exec(`lsof -ti:${port} | xargs kill -9`, (killError) => {
-        if (killError) {
-          console.log(`⚠️  Could not kill some processes on port ${port} (they may have already exited)`);
-        } else {
-          console.log(`✅ Successfully freed port ${port}`);
+async function startServer() {
+    console.log('Starting Gym Locker Admin Dashboard...\n');
+    
+    try {
+        // Check if port is already in use
+        console.log(`Checking for processes on port ${PORT}...`);
+        
+        try {
+            const result = execSync(`lsof -ti:${PORT}`, { encoding: 'utf8' }).trim();
+            if (result) {
+                const pids = result.split('\n').filter(pid => pid.trim());
+                console.log(`Found ${pids.length} process(es) on port ${PORT}, killing them...`);
+                
+                try {
+                    execSync(`kill -9 ${pids.join(' ')}`, { stdio: 'inherit' });
+                    console.log(`Could not kill some processes on port ${PORT} (they may have already exited)`);
+                } catch (killError) {
+                    console.log(`Successfully freed port ${PORT}`);
+                }
+                
+                // Wait a moment for processes to fully terminate
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+        } catch (error) {
+            console.log(`Port ${PORT} is free`);
         }
-        // Wait a moment for the port to be fully released
-        setTimeout(resolve, 1000);
-      });
-    });
-  });
+        
+        // Start the server
+        console.log('\nStarting backend server...');
+        
+        // Import and start the server
+        const server = require('./server');
+        
+        // The server will start automatically when imported
+        console.log(`Server is running on port ${PORT}`);
+        
+    } catch (error) {
+        console.error('Error starting server:', error.message);
+        process.exit(1);
+    }
 }
 
-function startServer() {
-  console.log('\n🖥️  Starting backend server...');
-  const serverProcess = exec('node server.js', { cwd: __dirname });
-  
-  serverProcess.stdout.on('data', (data) => {
-    process.stdout.write(data);
-  });
-  
-  serverProcess.stderr.on('data', (data) => {
-    process.stderr.write(data);
-  });
-  
-  serverProcess.on('close', (code) => {
-    console.log(`\n❌ Server process exited with code ${code}`);
-    process.exit(code || 1);
-  });
-  
-  // Handle process termination
-  process.on('SIGINT', () => {
-    console.log('\n🛑 Shutting down server...');
-    serverProcess.kill('SIGINT');
+// Handle graceful shutdown
+process.on('SIGINT', () => {
+    console.log('\nShutting down server...');
     process.exit(0);
-  });
-  
-  process.on('SIGTERM', () => {
-    console.log('\n🛑 Shutting down server...');
-    serverProcess.kill('SIGTERM');
-    process.exit(0);
-  });
-}
+});
 
-async function main() {
-  try {
-    // Clean up any existing processes on port 3001
-    await killProcessOnPort(SERVER_PORT);
-    console.log('🎯 Port cleanup complete, starting server...');
-    startServer();
-  } catch (error) {
-    console.error('❌ Failed to start server:', error);
+process.on('SIGTERM', () => {
+    console.log('\nShutting down server...');
+    process.exit(0);
+});
+
+// Start the server
+startServer().catch(error => {
+    console.error('Failed to start server:', error);
     process.exit(1);
-  }
-}
+});
 
-main(); 
+console.log('Port cleanup complete, starting server...'); 

@@ -1,116 +1,174 @@
-# Server Startup System
+# Gym Locker Dashboard - Server Startup Guide
 
-## 🚀 Robust Startup Solution
+## Robust Startup Solution
 
-This project includes a robust startup system that **prevents port conflicts forever**. The system automatically handles port conflicts and ensures clean server startup every time.
+This guide provides a comprehensive solution for starting the Gym Locker Dashboard server with automatic port cleanup and conflict resolution.
 
-## 📋 Available Commands
+## Available Commands
 
 ### Primary Commands
-```bash
-# Recommended: Start server with automatic port cleanup
-npm run server
-npm start
-
-# Alternative: Clean start (same as above)
-npm run clean-start
-```
-
-### Development Commands
-```bash
-# Start with nodemon (development mode)
-npm run server-dev
-
-# Start server directly (no port cleanup)
-npm run server-direct
-
-# Start both server and client
-npm run dev
-```
+- `npm run server` - **Recommended**: Starts server with automatic port cleanup
+- `npm start` - Standard start command
+- `npm run dev` - Development mode (both server and client)
 
 ### Utility Commands
+- `npm run cleanup` - Manually clean up port conflicts
+- `npm run build` - Build the React client
+
+## Command Details
+
+### `npm run server` (Recommended)
 ```bash
-# Clean up all ports manually
-npm run cleanup
-
-# Install all dependencies
-npm run install-all
-
-# Build client for production
-npm run build
-```
-
-## 🔧 How It Works
-
-### Automatic Port Management
-- **Port 3001**: Backend server (hardcoded, never changes)
-- **Port 3000**: React development server
-- **Port 5000**: Automatically cleaned up (common conflict source)
-
-### Startup Process
-1. **Port Cleanup**: Automatically kills any processes on required ports
-2. **Clean Start**: Starts server on a guaranteed clean port
-3. **Error Handling**: Automatically retries if startup fails
-4. **Graceful Shutdown**: Properly handles process termination
-
-### Files
-- `start-server.js`: Main startup script with port management
-- `cleanup-ports.js`: Emergency port cleanup utility
-- `server.js`: Main server application (hardcoded to port 3001)
-
-## 🛠️ Troubleshooting
-
-### If Server Won't Start
-```bash
-# Manual cleanup
-npm run cleanup
-
-# Then start normally
 npm run server
 ```
+**What it does:**
+- Automatically detects and kills processes on port 3001
+- Starts the backend server on the cleared port
+- Provides detailed logging of the cleanup process
+- Ensures clean startup every time
 
-### If Port Conflicts Persist
+**Output example:**
+```
+Starting Gym Locker Admin Dashboard...
+
+Checking for processes on port 3001...
+Port 3001 is free
+
+Starting backend server...
+Server is running on port 3001
+```
+
+### `npm start`
 ```bash
-# Nuclear option - kill everything
+npm start
+```
+**What it does:**
+- Standard start command
+- May fail if port 3001 is already in use
+- Requires manual port cleanup if conflicts occur
+
+### `npm run dev`
+```bash
+npm run dev
+```
+**What it does:**
+- Starts both backend server and React client
+- Backend on port 3001, React dev server on port 3000
+- Useful for development with hot reloading
+
+## How It Works
+
+The `npm run server` command uses a custom startup script (`start-server.js`) that:
+
+1. **Port Detection**: Checks if port 3001 is already in use
+2. **Process Identification**: Finds all processes using the port
+3. **Automatic Cleanup**: Kills conflicting processes
+4. **Server Startup**: Starts the backend server on the cleared port
+5. **Logging**: Provides detailed feedback throughout the process
+
+## Port Usage
+
+- **Port 3001**: Backend API server (main application)
+- **Port 3000**: React development server (when using `npm run dev`)
+- **Port 5000**: Cleanup utility (internal use)
+
+## Troubleshooting
+
+### Port Already in Use Error
+If you see "Port 3001 is already in use":
+
+**Solution 1: Use the recommended command**
+```bash
+npm run server
+```
+This will automatically clean up the port and start the server.
+
+**Solution 2: Manual cleanup**
+```bash
+npm run cleanup
+npm start
+```
+
+**Solution 3: Find and kill the process manually**
+```bash
+lsof -ti:3001 | xargs kill -9
+npm start
+```
+
+### Permission Denied Error
+If you get permission errors when killing processes:
+
+**Solution: Use sudo (on macOS/Linux)**
+```bash
 sudo lsof -ti:3001 | xargs sudo kill -9
-sudo lsof -ti:3000 | xargs sudo kill -9
-sudo lsof -ti:5000 | xargs sudo kill -9
+npm start
+```
 
-# Then start
+### React Client Build Issues
+If the client build fails:
+
+**Solution: Rebuild the client**
+```bash
+npm run build
 npm run server
 ```
 
-### Check What's Running
-```bash
-# See what's using port 3001
-lsof -i:3001
+## Benefits
 
-# See all Node processes
-ps aux | grep node
-```
+1. **Automatic Conflict Resolution**: No more manual port cleanup
+2. **Reliable Startup**: Consistent server startup every time
+3. **Detailed Logging**: Clear feedback on what's happening
+4. **Development Friendly**: Works seamlessly with development workflow
+5. **Production Ready**: Clean startup process for production deployments
 
-## ✅ Benefits
+## Port Configuration
 
-1. **No More Port Conflicts**: Automatic port cleanup prevents EADDRINUSE errors
-2. **Consistent Startup**: Server always starts on port 3001
-3. **Error Recovery**: Automatic retry on startup failures
-4. **Development Friendly**: Separate commands for different scenarios
-5. **Production Ready**: Graceful shutdown and error handling
+The server is configured to use port 3001 by default. To change this:
 
-## 🔒 Port Configuration
+1. **Environment Variable**: Set `PORT=3002` before starting
+2. **Configuration File**: Modify `gym_lockers/config.js`
+3. **Command Line**: `PORT=3002 npm run server`
 
-The server is **hardcoded to use port 3001** and will **never** try to use port 5000 again. This is enforced in the code:
+## Quick Start
 
-```javascript
-// Ensure we always use port 3001, regardless of environment variables
-const PORT = 3001;
-```
+1. **Navigate to the project directory**
+   ```bash
+   cd gym_lockers
+   ```
 
-## 🎯 Quick Start
+2. **Install dependencies** (if not already done)
+   ```bash
+   npm install
+   ```
 
-For most users, just run:
-```bash
-npm run server
-```
+3. **Start the server**
+   ```bash
+   npm run server
+   ```
 
-The system will handle everything automatically! 
+4. **Access the dashboard**
+   - Open your browser to `http://localhost:3001`
+   - The server will be running and ready to use
+
+## Development Workflow
+
+For active development:
+
+1. **Start development mode**
+   ```bash
+   npm run dev
+   ```
+
+2. **Make changes to your code**
+   - Backend changes: Server will restart automatically
+   - Frontend changes: React will hot reload
+
+3. **Stop development mode**
+   - Press `Ctrl+C` in the terminal
+
+4. **Start production mode**
+   ```bash
+   npm run server
+   ```
+
+This setup provides a robust, developer-friendly way to start and manage the Gym Locker Dashboard server. 
