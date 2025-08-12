@@ -1,0 +1,45 @@
+#include <tunables/global>
+
+profile gym_lockers flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  #include <abstractions/bash>
+  #include <abstractions/mysql>
+  #include <abstractions/nodejs>
+
+  # Capabilities
+  capability net_bind_service,
+  capability setuid,
+  capability setgid,
+
+  # S6-Overlay
+  /init ix,
+  /bin/** ix,
+  /usr/bin/** ix,
+  /run/{s6,s6-rc*,service}/** ix,
+  /package/** ix,
+  /command/** ix,
+  /etc/services.d/** ix,
+  /etc/cont-init.d/** ix,
+  /etc/cont-finish.d/** ix,
+  /run/** rwk,
+  /dev/tty rw,
+
+  # Addon data
+  /data/** rw,
+
+  # MQTT
+  /usr/sbin/mosquitto cx,
+  /var/lib/mosquitto/** rwk,
+  /var/log/mosquitto/** rwk,
+  network tcp,
+  network udp,
+
+  # MariaDB
+  /var/lib/mysql/** rwk,
+  /var/log/mysql/** rwk,
+  /run/mysqld/** rwk,
+
+  # NodeJS
+  /usr/lib/node_modules/** r,
+  /app/** rw,
+}
