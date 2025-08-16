@@ -9,6 +9,7 @@ const fs = require('fs');
 // Import database
 const Database = require('./database');
 const settingsRoutes = require('./routes/settings');
+const mqttRoutes = require('./routes/mqtt');
 
 const app = express();
 let server = null;
@@ -2300,6 +2301,7 @@ async function cleanup() {
 
 // Initialize routes
 app.use('/api/settings', settingsRoutes(db, systemSettings, connectMQTT));
+app.use('/api/mqtt', mqttRoutes);
 
 // Test MQTT connection
 app.post('/api/test-mqtt', async (req, res) => {
