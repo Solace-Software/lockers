@@ -157,6 +157,7 @@ function connectMQTT() {
         'locker/#',            // Alternative locker topic format
         'rubik/#',             // Rubik locker topics
         'heartbeat/#',         // Heartbeat messages
+        'test/#',              // Test messages for debugging
         '+/sync',              // Any device sync messages
         '+/send',              // Any device send messages
         '+/accesslist',        // Any device access list messages
@@ -245,7 +246,8 @@ async function handleMqttMessage(topic, message) {
     'lockers',
     'locker', 
     'rubik',
-    'heartbeat'
+    'heartbeat',
+    'test'
   ];
   
   const topicParts = topic.split('/');

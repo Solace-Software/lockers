@@ -124,4 +124,21 @@ console.log(`Auto Refresh: ${config.system.auto_refresh}s`);
 console.log(`Data Retention: ${config.system.data_retention} days`);
 console.log(`Debug Mode: ${config.system.debug_mode ? 'Enabled' : 'Disabled'}`);
 
-module.exports = config;
+// Export configuration with proper MQTT setup
+module.exports = {
+    ...config,
+    mqttEnabled: config.mqtt.use_internal || (config.mqtt.external && config.mqtt.external.host),
+    mqttConfig: config.mqtt.use_internal ? {
+        host: '100.81.165.23',  // Use the actual server IP for native broker
+        port: 1883,
+        username: '',  // Anonymous access enabled
+        password: '',
+        clientId: 'gym-admin'
+    } : (config.mqtt.external && config.mqtt.external.host ? {
+        host: config.mqtt.external.host,
+        port: config.mqtt.external.port || 1883,
+        username: config.mqtt.external.username || '',
+        password: config.mqtt.external.password || '',
+        clientId: 'gym-admin'
+    } : null)
+};
