@@ -41,6 +41,7 @@ const Lockers = () => {
     userId: '',
     expiryDate: ''
   });
+  const [lockerExpiryHours, setLockerExpiryHours] = useState(24);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -83,13 +84,15 @@ const Lockers = () => {
 
   const fetchData = async () => {
     try {
-      const [lockersRes, usersRes] = await Promise.all([
+      const [lockersRes, usersRes, expiryRes] = await Promise.all([
         axios.get('/api/lockers'),
-        axios.get('/api/users')
+        axios.get('/api/users'),
+        axios.get('/api/settings/locker-expiry')
       ]);
       
       setLockers(lockersRes.data);
       setUsers(usersRes.data);
+      setLockerExpiryHours(expiryRes.data.lockerExpiryHours);
       
       // Try to fetch groups if the endpoint exists
       try {
@@ -768,13 +771,27 @@ const Lockers = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Expiry Date
                   </label>
-                  <input
-                    type="datetime-local"
-                    value={assignmentData.expiryDate}
-                    onChange={(e) => setAssignmentData({ ...assignmentData, expiryDate: e.target.value })}
-                    className="input"
-                    required
-                  />
+                  <div className="flex space-x-2">
+                    <input
+                      type="datetime-local"
+                      value={assignmentData.expiryDate}
+                      onChange={(e) => setAssignmentData({ ...assignmentData, expiryDate: e.target.value })}
+                      className="input flex-1"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const defaultExpiry = new Date(Date.now() + lockerExpiryHours * 60 * 60 * 1000);
+                        const localDatetime = new Date(defaultExpiry.getTime() - defaultExpiry.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+                        setAssignmentData({ ...assignmentData, expiryDate: localDatetime });
+                      }}
+                      className="btn btn-secondary btn-sm whitespace-nowrap"
+                      title={`Set to default (${lockerExpiryHours} hours)`}
+                    >
+                      Default
+                    </button>
+                  </div>
                 </div>
               </div>
               <div className="flex space-x-3 mt-6">

@@ -60,7 +60,8 @@ let systemSettings = {
     autoRefresh: 30,
     dataRetention: 90,
     backupEnabled: true,
-    debugMode: false
+    debugMode: false,
+    lockerExpiryHours: 24
   }
 };
 
@@ -232,6 +233,26 @@ function scheduleMqttReconnect() {
       mqttReconnectDelay = Math.min(mqttReconnectDelay * 2, MQTT_RECONNECT_MAX);
     }
   }, mqttReconnectDelay);
+}
+
+// Helper function to get configured locker expiry time
+async function getLockerExpiryTime() {
+  try {
+    const settings = await db.getAllSettings();
+    const systemSettings = settings.find(s => s.key === 'systemSettings');
+    
+    if (systemSettings && systemSettings.value && systemSettings.value.lockerExpiryHours) {
+      const hours = systemSettings.value.lockerExpiryHours;
+      return new Date(Date.now() + hours * 60 * 60 * 1000);
+    }
+    
+    // Default to 24 hours if setting not found
+    return new Date(Date.now() + 24 * 60 * 60 * 1000);
+  } catch (error) {
+    console.error('❌ Error getting locker expiry time from settings:', error);
+    // Default to 24 hours on error
+    return new Date(Date.now() + 24 * 60 * 60 * 1000);
+  }
 }
 
 // Handle MQTT messages - now handles Rubik locker protocol
@@ -547,7 +568,7 @@ async function handleMqttMessage(topic, message) {
               
               if (availableLocker) {
                 // Assign locker to user and open it
-                const expiryDate = new Date(Date.now() + 24 * 60 * 60 * 1000); // 1 day default
+                const expiryDate = await getLockerExpiryTime();
                 await db.updateLocker(availableLocker.id, { 
                   status: 'occupied', 
                   user_id: user.id, 
@@ -1784,7 +1805,15 @@ app.get('/api/locker-groups/:id', async (req, res) => {
 app.post('/api/locker-groups', async (req, res) => {
   try {
     const groupData = req.body;
+    console.log('🔧 Creating group with data:', groupData);
+    
     const newGroup = await db.createGroup(groupData);
+    console.log('✅ Group created:', newGroup);
+    
+    if (!newGroup) {
+      console.error('❌ createGroup returned null/undefined');
+      return res.status(500).json({ error: 'Failed to create group - no data returned' });
+    }
     
     // Log activity
     await db.logActivity({
@@ -1797,7 +1826,7 @@ app.post('/api/locker-groups', async (req, res) => {
     res.json(newGroup);
   } catch (error) {
     console.error('❌ Error creating locker group:', error);
-    res.status(500).json({ error: 'Failed to create locker group' });
+    res.status(500).json({ error: 'Failed to create locker group', details: error.message });
   }
 });
 
@@ -2042,7 +2071,7 @@ async function startServer() {
           } else if (setting.key === 'notifications' && setting.value) {
             systemSettings.notifications = setting.value;
           } else if (setting.key === 'systemSettings' && setting.value) {
-            systemSettings.systemSettings = setting.value;
+            systemSettings.systemSettings = { ...systemSettings.systemSettings, ...setting.value };
           }
         });
       }
@@ -2427,6 +2456,24 @@ app.post('/api/test-mqtt-message', async (req, res) => {
       success: false, 
       message: 'Unexpected error while publishing test message' 
     });
+  }
+});
+
+// Get configured locker expiry time for frontend
+app.get('/api/settings/locker-expiry', async (req, res) => {
+  try {
+    const settings = await db.getAllSettings();
+    const systemSettings = settings.find(s => s.key === 'systemSettings');
+    
+    let lockerExpiryHours = 24; // default
+    if (systemSettings && systemSettings.value && systemSettings.value.lockerExpiryHours) {
+      lockerExpiryHours = systemSettings.value.lockerExpiryHours;
+    }
+    
+    res.json({ lockerExpiryHours });
+  } catch (error) {
+    console.error('❌ Error getting locker expiry setting:', error);
+    res.status(500).json({ error: 'Failed to get locker expiry setting' });
   }
 });
 

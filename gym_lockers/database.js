@@ -1,14 +1,14 @@
 const mysql = require('mysql2/promise');
-const { dbConfig } = require('./config');
+const config = require('./config');
 
 class Database {
   constructor() {
     this.pool = mysql.createPool({
-      host: dbConfig.host,
-      port: dbConfig.port,
-      user: dbConfig.user,
-      password: dbConfig.password,
-      database: dbConfig.database,
+      host: config.database.host,
+      port: config.database.port,
+      user: config.database.username,
+      password: config.database.password,
+      database: config.database.name,
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0
@@ -538,12 +538,22 @@ class Database {
           INSERT INTO group_lockers (group_id, locker_id)
           VALUES ${locker_ids.map((_, i) => `(?, ?)`).join(', ')}
         `;
-        await conn.query(lockerQuery, [groupId, ...locker_ids]);
+        const lockerValues = locker_ids.flatMap(lockerId => [groupId, lockerId]);
+        await conn.query(lockerQuery, lockerValues);
       }
       
-      // Get the created group
-      const group = await this.getGroupById(groupId);
-      return group;
+      // Return the created group data directly (instead of calling getGroupById which may fail in transaction)
+      const createdGroup = {
+        id: groupId,
+        name,
+        description,
+        color,
+        locker_ids: locker_ids.length > 0 ? locker_ids : [],
+        created_at: new Date(),
+        updated_at: new Date()
+      };
+      
+      return createdGroup;
     });
   }
 
@@ -558,7 +568,33 @@ class Database {
       ORDER BY lg.created_at DESC
     `;
     const result = await this.query(query);
-    return result[0];
+    
+    // Process results to ensure locker_ids is always a proper array
+    const groups = result[0].map(group => ({
+      ...group,
+      locker_ids: this.processLockerIds(group.locker_ids)
+    }));
+    
+    return groups;
+  }
+
+  // Helper method to process locker_ids from JSON_ARRAYAGG
+  processLockerIds(lockerIds) {
+    if (!lockerIds) return [];
+    
+    // If it's already an array, filter out null values
+    if (Array.isArray(lockerIds)) {
+      return lockerIds.filter(id => id !== null);
+    }
+    
+    // If it's a string, parse it and filter out null values
+    try {
+      const parsed = JSON.parse(lockerIds);
+      return Array.isArray(parsed) ? parsed.filter(id => id !== null) : [];
+    } catch (error) {
+      console.error('Error parsing locker_ids:', error);
+      return [];
+    }
   }
 
   async getGroupById(id) {
@@ -572,7 +608,14 @@ class Database {
       GROUP BY lg.id
     `;
     const result = await this.query(query, [id]);
-    return result[0][0];
+    const group = result[0][0];
+    
+    if (!group) return null;
+    
+    return {
+      ...group,
+      locker_ids: this.processLockerIds(group.locker_ids)
+    };
   }
 
   async updateGroup(id, groupData) {

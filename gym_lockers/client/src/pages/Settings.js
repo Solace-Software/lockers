@@ -40,7 +40,8 @@ const Settings = () => {
     autoRefresh: 30,
     dataRetention: 90,
     backupEnabled: true,
-    debugMode: false
+    debugMode: false,
+    lockerExpiryHours: 24
   });
 
   // MQTT Listener state
@@ -70,7 +71,10 @@ const Settings = () => {
         }
 
         if (settings.systemSettings) {
-          setSystemSettings(settings.systemSettings);
+          setSystemSettings(prevSettings => ({
+            ...prevSettings,
+            ...settings.systemSettings
+          }));
         }
         
         console.log('⚙️ Settings loaded from API:', settings);
@@ -83,7 +87,10 @@ const Settings = () => {
         const savedMqttListener = localStorage.getItem('mqttListener');
 
         if (savedMqtt) setMqttConfig(JSON.parse(savedMqtt));
-        if (savedSystem) setSystemSettings(JSON.parse(savedSystem));
+        if (savedSystem) setSystemSettings(prevSettings => ({
+          ...prevSettings,
+          ...JSON.parse(savedSystem)
+        }));
         if (savedMqttListener) setMqttListener(prev => ({ ...prev, ...JSON.parse(savedMqttListener), messages: [], isListening: false }));
       }
     };
@@ -644,6 +651,29 @@ const Settings = () => {
                 <option value={60}>60 days</option>
                 <option value={90}>90 days</option>
                 <option value={365}>1 year</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-cyan-200 mb-1">
+                Default Locker Assignment Duration
+              </label>
+              <select
+                value={systemSettings.lockerExpiryHours}
+                onChange={(e) => setSystemSettings({ ...systemSettings, lockerExpiryHours: parseInt(e.target.value) })}
+                className="input"
+              >
+                <option value={1}>1 hour</option>
+                <option value={2}>2 hours</option>
+                <option value={4}>4 hours</option>
+                <option value={8}>8 hours</option>
+                <option value={12}>12 hours</option>
+                <option value={24}>24 hours (1 day)</option>
+                <option value={48}>48 hours (2 days)</option>
+                <option value={72}>72 hours (3 days)</option>
+                <option value={168}>1 week</option>
+                <option value={336}>2 weeks</option>
+                <option value={720}>1 month</option>
               </select>
             </div>
 

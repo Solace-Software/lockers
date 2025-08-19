@@ -169,7 +169,7 @@ const Groups = () => {
       description: group.description,
       color: group.color
     });
-    setSelectedLockers(group.locker_ids);
+    setSelectedLockers(Array.isArray(group.locker_ids) ? group.locker_ids : []);
     setEditingGroup(group);
   };
 
@@ -182,14 +182,16 @@ const Groups = () => {
   };
 
   const getGroupLockers = (group) => {
-    return lockers.filter(locker => group.locker_ids.includes(locker.id));
+    const lockerIds = Array.isArray(group.locker_ids) ? group.locker_ids : [];
+    return lockers.filter(locker => lockerIds.includes(locker.id));
   };
 
   const getAvailableLockers = () => {
     const usedLockerIds = new Set();
     groups.forEach(group => {
       if (editingGroup && group.id === editingGroup.id) return; // Skip current group when editing
-      group.locker_ids.forEach(id => usedLockerIds.add(id));
+      const lockerIds = Array.isArray(group.locker_ids) ? group.locker_ids : [];
+      lockerIds.forEach(id => usedLockerIds.add(id));
     });
     return lockers.filter(locker => !usedLockerIds.has(locker.id));
   };

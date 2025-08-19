@@ -23,7 +23,8 @@ module.exports = function(db, systemSettings, connectMQTT) {
             response.notifications = typeof setting.value === 'string' ? JSON.parse(setting.value) : setting.value;
           } else if (setting.key === 'systemSettings' && setting.value) {
             // MySQL JSON type already parses the value, so use it directly if it's an object
-            response.systemSettings = typeof setting.value === 'string' ? JSON.parse(setting.value) : setting.value;
+            const dbSystemSettings = typeof setting.value === 'string' ? JSON.parse(setting.value) : setting.value;
+            response.systemSettings = { ...response.systemSettings, ...dbSystemSettings };
           }
         });
       }

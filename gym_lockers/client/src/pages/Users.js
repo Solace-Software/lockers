@@ -49,18 +49,22 @@ const Users = () => {
     isAvailable: null,
     message: ''
   });
+  
+  const [lockerExpiryHours, setLockerExpiryHours] = useState(24);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [usersRes, lockersRes, groupsRes] = await Promise.all([
+      const [usersRes, lockersRes, groupsRes, expiryRes] = await Promise.all([
         axios.get('/api/users'),
         axios.get('/api/lockers'),
-        axios.get('/api/groups')
+        axios.get('/api/groups'),
+        axios.get('/api/settings/locker-expiry')
       ]);
       setUsers(usersRes.data);
       setLockers(lockersRes.data);
       setGroups(groupsRes.data);
+      setLockerExpiryHours(expiryRes.data.lockerExpiryHours);
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to fetch data');
@@ -145,7 +149,7 @@ const Users = () => {
       
       const response = await axios.post(`/api/lockers/${randomLocker.id}/assign`, {
         userId: selectedUser.id,
-        expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // default: 30 days from now
+        expiryDate: new Date(Date.now() + lockerExpiryHours * 60 * 60 * 1000).toISOString()
       });
 
       // Update lockers list
