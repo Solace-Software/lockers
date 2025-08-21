@@ -98,6 +98,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment || 'production' }}
+    if: ${{ secrets.SSH_PRIVATE_KEY != '' && secrets.SERVER_HOST != '' }}
     
     steps:
       - name: Checkout repository
@@ -110,6 +111,7 @@ jobs:
 
       - name: Add server to known hosts
         run: |
+          mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
 
       - name: Deploy to server
