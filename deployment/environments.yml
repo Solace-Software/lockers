@@ -1,0 +1,122 @@
+# Environment Configuration for Deployment
+# This file defines different deployment environments
+
+environments:
+  development:
+    profile: dev
+    services:
+      - db
+      - mqtt
+      - backend
+      - frontend
+    ports:
+      frontend: 3000
+      backend: 3001
+      database: 3306
+      mqtt: 1883
+      mqtt_ws: 9001
+    debug: true
+    ssl: false
+    domain: localhost
+
+  staging:
+    profile: prod
+    services:
+      - db
+      - mqtt
+      - backend
+      - frontend-builder
+      - nginx
+    ports:
+      frontend: 8080
+      backend: 3101
+      database: 3406
+      mqtt: 1883
+      mqtt_ws: 9001
+      nginx_http: 8080
+      nginx_https: 8443
+    debug: true
+    ssl: true
+    domain: staging.gym.example.com
+    project_name: gym-lockers-staging
+
+  production:
+    profile: prod
+    services:
+      - db
+      - mqtt
+      - backend
+      - frontend-builder
+      - nginx
+    ports:
+      frontend: 80
+      backend: 3001
+      database: 3306
+      mqtt: 1883
+      mqtt_ws: 9001
+      nginx_http: 80
+      nginx_https: 443
+    debug: false
+    ssl: true
+    domain: gym.example.com
+    project_name: gym-lockers
+
+# Server configurations
+servers:
+  production:
+    host: "${SERVER_HOST}"
+    user: "${SERVER_USER}"
+    deploy_path: "/opt/gym-lockers"
+    backup_path: "/opt/backups/gym-lockers"
+    
+  staging:
+    host: "${STAGING_SERVER_HOST}"
+    user: "${STAGING_SERVER_USER}"
+    deploy_path: "/opt/gym-lockers-staging"
+    backup_path: "/opt/backups/gym-lockers-staging"
+
+# Docker image configuration
+images:
+  backend:
+    context: "./gym_lockers"
+    dockerfile: "Dockerfile.backend"
+    registry: "ghcr.io"
+    
+  frontend:
+    context: "./gym_lockers/client"
+    dockerfile: "Dockerfile.production"
+    registry: "ghcr.io"
+
+# Health check endpoints
+health_checks:
+  backend:
+    endpoint: "/api/status"
+    timeout: 30
+    retries: 3
+    
+  frontend:
+    endpoint: "/"
+    timeout: 10
+    retries: 3
+    
+  database:
+    command: "mysqladmin ping"
+    timeout: 20
+    retries: 5
+    
+  mqtt:
+    command: "mosquitto_pub -h localhost -t test -m test"
+    timeout: 10
+    retries: 3
+
+# Deployment strategies
+strategies:
+  rolling:
+    enabled: true
+    max_unavailable: 1
+    
+  blue_green:
+    enabled: false
+    
+  canary:
+    enabled: false

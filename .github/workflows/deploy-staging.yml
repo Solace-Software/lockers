@@ -1,0 +1,262 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [develop, staging]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to deploy'
+        required: false
+        default: 'develop'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || github.head_ref || github.ref }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata for backend
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend
+          tags: |
+            type=ref,event=branch,suffix=-staging
+            type=ref,event=pr,suffix=-staging
+            type=sha,prefix=staging-
+
+      - name: Extract metadata for frontend
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend
+          tags: |
+            type=ref,event=branch,suffix=-staging
+            type=ref,event=pr,suffix=-staging
+            type=sha,prefix=staging-
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./gym_lockers
+          file: ./gym_lockers/Dockerfile.backend
+          push: true
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
+          cache-from: type=gha,scope=staging
+          cache-to: type=gha,mode=max,scope=staging
+
+      - name: Build and push frontend staging image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./gym_lockers/client
+          file: ./gym_lockers/client/Dockerfile.production
+          push: true
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+          cache-from: type=gha,scope=staging
+          cache-to: type=gha,mode=max,scope=staging
+
+  deploy-staging:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: staging
+    if: github.event_name != 'pull_request'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+
+      - name: Add staging server to known hosts
+        run: |
+          ssh-keyscan -H ${{ secrets.STAGING_SERVER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to staging server
+        env:
+          SERVER_HOST: ${{ secrets.STAGING_SERVER_HOST }}
+          SERVER_USER: ${{ secrets.STAGING_SERVER_USER }}
+          DB_ROOT_PASSWORD: ${{ secrets.STAGING_DB_ROOT_PASSWORD }}
+          DB_PASSWORD: ${{ secrets.STAGING_DB_PASSWORD }}
+          MQTT_USERNAME: ${{ secrets.STAGING_MQTT_USERNAME }}
+          MQTT_PASSWORD: ${{ secrets.STAGING_MQTT_PASSWORD }}
+          DOMAIN: ${{ secrets.STAGING_DOMAIN }}
+          BACKEND_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:staging-${{ github.sha }}
+          FRONTEND_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:staging-${{ github.sha }}
+        run: |
+          cat > deploy-staging.sh << 'EOF'
+          #!/bin/bash
+          set -e
+          
+          echo "🚀 Starting staging deployment..."
+          
+          # Navigate to staging deployment directory
+          cd /opt/gym-lockers-staging || { 
+            echo "📁 Creating staging deployment directory..."
+            sudo mkdir -p /opt/gym-lockers-staging
+            cd /opt/gym-lockers-staging
+            sudo git clone https://github.com/${{ github.repository }}.git .
+          }
+          
+          # Pull latest changes
+          echo "📋 Pulling latest changes..."
+          sudo git fetch origin
+          sudo git checkout ${{ github.event.inputs.branch || github.head_ref || github.ref_name }}
+          sudo git reset --hard origin/${{ github.event.inputs.branch || github.head_ref || github.ref_name }}
+          
+          # Stop existing staging services
+          echo "🛑 Stopping existing services..."
+          sudo docker compose -p gym-lockers-staging down || true
+          
+          # Create staging environment file
+          echo "⚙️  Setting up staging environment..."
+          sudo tee .env.staging << ENVEOF
+          DB_ROOT_PASSWORD=$DB_ROOT_PASSWORD
+          DB_NAME=gym_lockers_staging
+          DB_USER=gym_admin_staging
+          DB_PASSWORD=$DB_PASSWORD
+          MQTT_USERNAME=$MQTT_USERNAME
+          MQTT_PASSWORD=$MQTT_PASSWORD
+          NODE_ENV=staging
+          DEBUG_MODE=true
+          DOMAIN=$DOMAIN
+          BACKEND_IMAGE=$BACKEND_IMAGE
+          FRONTEND_IMAGE=$FRONTEND_IMAGE
+          ENVEOF
+          
+          # Create staging docker-compose override
+          sudo tee docker-compose.staging.yml << STAGINGEOF
+          version: '3.8'
+          services:
+            backend:
+              image: \${BACKEND_IMAGE}
+              environment:
+                - NODE_ENV=staging
+                - DEBUG_MODE=true
+                - DB_NAME=gym_lockers_staging
+                - DB_USER=gym_admin_staging
+              ports:
+                - "3101:3001"  # Different port for staging
+            
+            frontend-builder:
+              image: \${FRONTEND_IMAGE}
+              profiles:
+                - prod
+            
+            nginx:
+              ports:
+                - "8080:80"    # Different port for staging
+                - "8443:443"   # Different port for staging
+              profiles:
+                - prod
+            
+            db:
+              environment:
+                - MYSQL_DATABASE=gym_lockers_staging
+                - MYSQL_USER=gym_admin_staging
+              ports:
+                - "3406:3306"  # Different port for staging
+          STAGINGEOF
+          
+          # Log in to GitHub Container Registry
+          echo "🔐 Logging into container registry..."
+          echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+          
+          # Pull latest images
+          echo "📥 Pulling latest images..."
+          sudo docker pull $BACKEND_IMAGE
+          sudo docker pull $FRONTEND_IMAGE
+          
+          # Start staging services
+          echo "🚀 Starting staging services..."
+          sudo docker compose -p gym-lockers-staging --env-file .env.staging -f docker-compose.yml -f docker-compose.staging.yml --profile prod up -d
+          
+          # Wait for services
+          echo "⏳ Waiting for services to be ready..."
+          sleep 30
+          
+          # Health check
+          echo "🏥 Running health checks..."
+          sudo docker compose -p gym-lockers-staging ps
+          
+          # Test staging API
+          if curl -f http://localhost:3101/api/status > /dev/null 2>&1; then
+            echo "✅ Staging backend API is responding"
+          else
+            echo "⚠️  Staging backend API not responding"
+          fi
+          
+          echo "✅ Staging deployment completed!"
+          echo "🌐 Staging URL: http://$DOMAIN:8080"
+          echo "🔧 Staging API: http://$DOMAIN:3101"
+          EOF
+          
+          # Copy and execute staging deployment script
+          scp deploy-staging.sh $SERVER_USER@$SERVER_HOST:/tmp/
+          ssh $SERVER_USER@$SERVER_HOST "chmod +x /tmp/deploy-staging.sh && sudo /tmp/deploy-staging.sh"
+
+      - name: Update PR with staging link
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '🚀 **Staging deployment ready!**\n\n' +
+                    '🌐 **Frontend**: http://${{ secrets.STAGING_DOMAIN }}:8080\n' +
+                    '🔧 **API**: http://${{ secrets.STAGING_DOMAIN }}:3101/api/status\n' +
+                    '📊 **Docker Status**: `ssh ${{ secrets.STAGING_SERVER_USER }}@${{ secrets.STAGING_SERVER_HOST }} "sudo docker compose -p gym-lockers-staging ps"`'
+            })
+
+  test-staging:
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    
+    steps:
+      - name: Test staging deployment
+        run: |
+          echo "🧪 Testing staging deployment..."
+          
+          # Test API endpoint
+          response=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.STAGING_DOMAIN }}:3101/api/status || echo "000")
+          
+          if [[ "$response" == "200" ]]; then
+            echo "✅ Staging API is responding correctly"
+          else
+            echo "❌ Staging API test failed (HTTP $response)"
+            exit 1
+          fi
+          
+          echo "✅ All staging tests passed!"
