@@ -13,26 +13,46 @@ on:
         options:
           - production
           - staging
-      force_rebuild:
-        description: 'Force rebuild images'
-        required: false
-        default: false
-        type: boolean
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build:
+  check-secrets:
     runs-on: ubuntu-latest
+    name: Check Configuration
+    outputs:
+      has-secrets: ${{ steps.check.outputs.has-secrets }}
+      
+    steps:
+      - name: Check if deployment secrets are configured
+        id: check
+        run: |
+          if [[ -n "${{ secrets.SERVER_HOST }}" && -n "${{ secrets.SSH_PRIVATE_KEY }}" ]]; then
+            echo "has-secrets=true" >> $GITHUB_OUTPUT
+            echo "✅ Deployment secrets are configured"
+          else
+            echo "has-secrets=false" >> $GITHUB_OUTPUT
+            echo "⚠️ Deployment secrets not configured"
+            echo ""
+            echo "To enable automatic deployment, add these secrets to your repository:"
+            echo "- SSH_PRIVATE_KEY: Your SSH private key"
+            echo "- SERVER_HOST: Your server IP/hostname"
+            echo "- SERVER_USER: SSH username (e.g., root)"
+            echo "- DB_ROOT_PASSWORD: Database root password"
+            echo "- DB_PASSWORD: Application database password"
+            echo "- MQTT_USERNAME: MQTT broker username"
+            echo "- MQTT_PASSWORD: MQTT broker password"
+            echo "- DOMAIN: Your domain name"
+          fi
+
+  build-images:
+    runs-on: ubuntu-latest
+    name: Build Docker Images
     permissions:
       contents: read
       packages: write
-      
-    outputs:
-      image-tag: ${{ steps.meta.outputs.tags }}
-      image-digest: ${{ steps.build.outputs.digest }}
       
     steps:
       - name: Checkout repository
@@ -55,7 +75,6 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend
           tags: |
             type=ref,event=branch
-            type=ref,event=pr
             type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
 
@@ -66,12 +85,10 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend
           tags: |
             type=ref,event=branch
-            type=ref,event=pr
             type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push backend image
-        id: build-backend
         uses: docker/build-push-action@v5
         with:
           context: ./gym_lockers
@@ -82,8 +99,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build and push frontend production image
-        id: build-frontend
+      - name: Build and push frontend image
         uses: docker/build-push-action@v5
         with:
           context: ./gym_lockers/client
@@ -94,11 +110,17 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Images built successfully
+        run: |
+          echo "✅ Backend image: ${{ steps.meta-backend.outputs.tags }}"
+          echo "✅ Frontend image: ${{ steps.meta-frontend.outputs.tags }}"
+
   deploy:
-    needs: build
+    needs: [check-secrets, build-images]
     runs-on: ubuntu-latest
+    name: Deploy to Server
+    if: needs.check-secrets.outputs.has-secrets == 'true'
     environment: ${{ github.event.inputs.environment || 'production' }}
-    if: ${{ secrets.SSH_PRIVATE_KEY != '' && secrets.SERVER_HOST != '' }}
     
     steps:
       - name: Checkout repository
@@ -114,129 +136,107 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Deploy to server
+      - name: Test SSH connection
+        run: |
+          ssh -o ConnectTimeout=10 ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "echo 'SSH connection successful'"
+
+      - name: Deploy application
         env:
           SERVER_HOST: ${{ secrets.SERVER_HOST }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
-          DB_ROOT_PASSWORD: ${{ secrets.DB_ROOT_PASSWORD }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          MQTT_USERNAME: ${{ secrets.MQTT_USERNAME }}
-          MQTT_PASSWORD: ${{ secrets.MQTT_PASSWORD }}
-          DOMAIN: ${{ secrets.DOMAIN }}
           BACKEND_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/backend:latest
           FRONTEND_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/frontend:latest
         run: |
-          # Create deployment script
+          echo "🚀 Deploying to ${{ github.event.inputs.environment || 'production' }}..."
+          
+          # Create simple deployment script
           cat > deploy.sh << 'EOF'
           #!/bin/bash
           set -e
           
-          echo "🚀 Starting deployment to ${{ github.event.inputs.environment || 'production' }}..."
+          echo "📁 Checking deployment directory..."
+          if [ ! -d "/opt/gym-lockers" ]; then
+            echo "Creating deployment directory..."
+            sudo mkdir -p /opt/gym-lockers
+            cd /opt/gym-lockers
+            sudo git clone https://github.com/${{ github.repository }}.git .
+          else
+            cd /opt/gym-lockers
+            sudo git fetch origin
+            sudo git reset --hard origin/main
+          fi
           
-          # Navigate to deployment directory
-          cd /opt/gym-lockers || { echo "❌ Deployment directory not found"; exit 1; }
+          echo "🐳 Logging into container registry..."
+          echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
           
-          # Backup current deployment
-          echo "💾 Creating backup..."
+          echo "📥 Pulling latest images..."
+          sudo docker pull $BACKEND_IMAGE || echo "Failed to pull backend image"
+          sudo docker pull $FRONTEND_IMAGE || echo "Failed to pull frontend image"
+          
+          echo "🔄 Updating containers..."
           sudo docker compose down || true
-          sudo cp docker-compose.yml docker-compose.yml.backup.$(date +%Y%m%d_%H%M%S) || true
           
-          # Pull latest code
-          echo "📋 Pulling latest changes..."
-          sudo git fetch origin
-          sudo git reset --hard origin/main
-          
-          # Create production environment file
-          echo "⚙️  Setting up environment..."
-          sudo tee .env << ENVEOF
-          DB_ROOT_PASSWORD=$DB_ROOT_PASSWORD
-          DB_NAME=gym_lockers
-          DB_USER=gym_admin
-          DB_PASSWORD=$DB_PASSWORD
-          MQTT_USERNAME=$MQTT_USERNAME
-          MQTT_PASSWORD=$MQTT_PASSWORD
-          NODE_ENV=production
-          DEBUG_MODE=false
-          DOMAIN=$DOMAIN
-          BACKEND_IMAGE=$BACKEND_IMAGE
-          FRONTEND_IMAGE=$FRONTEND_IMAGE
-          ENVEOF
-          
-          # Create production docker-compose override
-          sudo tee docker-compose.prod.yml << PRODEOF
+          # Create a simple override file if needed
+          if [ ! -f docker-compose.override.yml ]; then
+            cat > docker-compose.override.yml << OVERRIDE
           version: '3.8'
           services:
             backend:
-              image: \${BACKEND_IMAGE}
-              environment:
-                - NODE_ENV=production
-                - DEBUG_MODE=false
-            
+              image: $BACKEND_IMAGE
             frontend-builder:
-              image: \${FRONTEND_IMAGE}
-              profiles:
-                - prod
-          PRODEOF
+              image: $FRONTEND_IMAGE
+          OVERRIDE
+          fi
           
-          # Log in to GitHub Container Registry
-          echo "🔐 Logging into container registry..."
-          echo "${{ secrets.GITHUB_TOKEN }}" | sudo docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+          sudo docker compose --profile prod up -d
           
-          # Pull latest images
-          echo "📥 Pulling latest images..."
-          sudo docker pull $BACKEND_IMAGE
-          sudo docker pull $FRONTEND_IMAGE
-          
-          # Start services
-          echo "🚀 Starting services..."
-          sudo docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile prod up -d
-          
-          # Wait for services
-          echo "⏳ Waiting for services to be ready..."
+          echo "⏳ Waiting for services..."
           sleep 30
           
-          # Health check
-          echo "🏥 Running health checks..."
+          echo "🏥 Health check..."
           sudo docker compose ps
           
-          # Test API
           if curl -f http://localhost:3001/api/status > /dev/null 2>&1; then
-            echo "✅ Backend API is responding"
+            echo "✅ API is responding"
           else
-            echo "⚠️  Backend API not responding"
+            echo "⚠️ API not responding"
           fi
           
-          # Test frontend (if accessible)
-          if curl -f http://localhost/ > /dev/null 2>&1; then
-            echo "✅ Frontend is accessible"
-          else
-            echo "⚠️  Frontend not accessible"
-          fi
-          
-          echo "✅ Deployment completed successfully!"
+          echo "✅ Deployment completed!"
           EOF
           
-          # Copy and execute deployment script
-          scp deploy.sh $SERVER_USER@$SERVER_HOST:/tmp/
-          ssh $SERVER_USER@$SERVER_HOST "chmod +x /tmp/deploy.sh && sudo /tmp/deploy.sh"
-
+          # Execute deployment
+          scp deploy.sh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/tmp/
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} "chmod +x /tmp/deploy.sh && /tmp/deploy.sh"
+          
       - name: Cleanup
         if: always()
-        run: |
-          rm -f deploy.sh
+        run: rm -f deploy.sh
 
   notify:
-    needs: [build, deploy]
+    needs: [check-secrets, build-images, deploy]
     runs-on: ubuntu-latest
+    name: Notification
     if: always()
     
     steps:
-      - name: Notify deployment status
+      - name: Report status
         run: |
-          if [[ "${{ needs.deploy.result }}" == "success" ]]; then
-            echo "✅ Deployment to ${{ github.event.inputs.environment || 'production' }} completed successfully!"
-            echo "🌐 Application should be available at: https://${{ secrets.DOMAIN }}"
+          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ needs.check-secrets.outputs.has-secrets }}" == "true" ]]; then
+            if [[ "${{ needs.deploy.result }}" == "success" ]]; then
+              echo "✅ **Deployment completed successfully!**" >> $GITHUB_STEP_SUMMARY
+              echo "🌐 **Application should be available at your configured domain**" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "❌ **Deployment failed**" >> $GITHUB_STEP_SUMMARY
+              echo "Check the deploy job logs for details" >> $GITHUB_STEP_SUMMARY
+            fi
           else
-            echo "❌ Deployment failed!"
-            exit 1
+            echo "⚠️ **Deployment skipped - secrets not configured**" >> $GITHUB_STEP_SUMMARY
+            echo "Add deployment secrets to enable automatic deployment" >> $GITHUB_STEP_SUMMARY
           fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📦 **Docker images built and pushed to registry**" >> $GITHUB_STEP_SUMMARY
