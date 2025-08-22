@@ -510,13 +510,25 @@ class Database {
   // Add getLockerGroup method
   async getLockerGroup(lockerId) {
     const query = `
-      SELECT lg.* 
+      SELECT 
+        lg.*,
+        JSON_ARRAYAGG(gl2.locker_id) as locker_ids
       FROM locker_groups lg
       JOIN group_lockers gl ON lg.id = gl.group_id
+      JOIN group_lockers gl2 ON lg.id = gl2.group_id
       WHERE gl.locker_id = ?
+      GROUP BY lg.id
+      LIMIT 1
     `;
     const result = await this.query(query, [lockerId]);
-    return result[0][0] || null;
+    const group = result[0][0];
+    
+    if (!group) return null;
+    
+    return {
+      ...group,
+      locker_ids: this.processLockerIds(group.locker_ids)
+    };
   }
 
   // Group methods

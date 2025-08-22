@@ -161,7 +161,7 @@ deploy_local() {
 
     # Stop existing services
     log_info "Stopping existing services..."
-    docker compose --profile dev down || true
+    (docker compose --profile dev down || docker-compose --profile dev down) || true
 
     # Build and start services
     local build_flag=""
@@ -170,7 +170,7 @@ deploy_local() {
     fi
 
     log_info "Starting local development environment..."
-    docker compose --profile dev up -d $build_flag
+    (docker compose --profile dev up -d $build_flag || docker-compose --profile dev up -d $build_flag)
 
     # Wait for services
     log_info "Waiting for services to be ready..."
@@ -178,7 +178,7 @@ deploy_local() {
 
     # Health check
     log_info "Running health checks..."
-    docker compose --profile dev ps
+    (docker compose --profile dev ps || docker-compose --profile dev ps)
 
     if curl -f http://localhost:3001/api/status > /dev/null 2>&1; then
         log_success "Backend API is responding"
@@ -217,7 +217,7 @@ deploy_remote() {
         production)
             server_host="${SERVER_HOST}"
             server_user="${SERVER_USER}"
-            deploy_path="/opt/gym-lockers"
+            deploy_path="/opt/lockers"
             ports="Frontend: :80/:443, API: :3001"
             ;;
     esac
@@ -264,7 +264,7 @@ cd "$DEPLOY_PATH" || {
 # Backup current deployment
 if [[ "$BACKUP" == "true" ]]; then
     echo "💾 Creating backup..."
-    sudo docker compose down || true
+    sudo docker-compose -f docker-compose.prod.yml down || true
     
     backup_dir="/opt/backups/gym-lockers-$(date +%Y%m%d_%H%M%S)"
     sudo mkdir -p "$(dirname "$backup_dir")"
@@ -285,12 +285,12 @@ fi
 # Docker operations
 if [[ "$FORCE_REBUILD" == "true" ]]; then
     echo "🔨 Rebuilding images..."
-    sudo docker compose --profile prod build --no-cache
+    sudo docker-compose -f docker-compose.prod.yml build --no-cache
 fi
 
 # Start services
 echo "🚀 Starting services..."
-sudo docker compose --profile prod up -d
+sudo docker-compose -f docker-compose.prod.yml up -d
 
 # Wait for services
 echo "⏳ Waiting for services..."
@@ -298,7 +298,7 @@ sleep 30
 
 # Health checks
 echo "🏥 Running health checks..."
-sudo docker compose ps
+sudo docker-compose -f docker-compose.prod.yml ps
 
 # API health check
 for i in {1..10}; do

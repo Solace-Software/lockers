@@ -370,18 +370,38 @@ async function handleMqttMessage(topic, message) {
       }
     }
 
-    // Handle RFID scan messages for auto-assignment (from lockers/send topic)
-    if (payload && payload.cmd === 'log' && payload.type === 'access' && payload.door) {
-      console.log(`🔍 Processing access log message: uid="${payload.uid}", door="${payload.door}"`);
+    // Handle RFID scan messages for auto-assignment - Support multiple message formats
+    const isAccessLog = payload && payload.cmd === 'log' && payload.type === 'access' && payload.door;
+    const isEventWarning = payload && payload.cmd === 'event' && payload.type === 'WARN' && payload.src === 'rfid' && payload.door;
+    
+    if (isAccessLog || isEventWarning) {
+      // Extract UID from different message formats
+      let extractedUid = null;
+      
+      if (isAccessLog) {
+        // Standard access log format: {"cmd":"log","type":"access","uid":"4955cc2951190",...}
+        extractedUid = payload.uid;
+        console.log(`🔍 Processing ACCESS LOG: uid="${extractedUid}", door="${payload.door}"`);
+      } else if (isEventWarning) {
+        // Event warning format: {"cmd":"event","type":"WARN","data":"4955cc2951190 MIFARE Ultralight",...}
+        // Extract UID from data field (before space)
+        if (payload.data && typeof payload.data === 'string') {
+          extractedUid = payload.data.split(' ')[0]; // Get UID before space
+        }
+        console.log(`🔍 Processing EVENT WARNING: extracted uid="${extractedUid}", door="${payload.door}", data="${payload.data}"`);
+      }
       
       // Only process messages with valid RFID tags to avoid conflicts
-      const isRfidScan = payload.uid && payload.uid.trim() !== '';
+      const isRfidScan = extractedUid && extractedUid.trim() !== '';
       
       if (isRfidScan) {
-        console.log(`🔍 RFID scan detected: ${payload.uid} at door ${payload.door}`);
+        console.log(`🔍 RFID scan detected: ${extractedUid} at door ${payload.door}`);
+        
+        // Use extracted UID for processing (normalize payload)
+        payload.uid = extractedUid;
       } else {
-        // Skip processing for non-RFID access logs (empty uid messages)
-        console.log(`⏭️ Skipping empty uid message for door ${payload.door}`);
+        // Skip processing for messages without valid RFID tags
+        console.log(`⏭️ Skipping message without valid RFID tag for door ${payload.door}`);
         return;
       }
               try {
@@ -408,125 +428,86 @@ async function handleMqttMessage(topic, message) {
         if (user) {
           // Check if user already has a locker assigned
           if (user.locker_id) {
-            // User already has a locker assigned
+            // User already has a locker assigned - ALWAYS open assigned locker regardless of scan location
             const allLockers = await db.getAllLockers();
             const assignedLocker = allLockers.find(l => l.id === user.locker_id);
             
             if (assignedLocker) {
-              // Find the locker they're scanning at
-              const scanningLocker = allLockers.find(l => {
-                // Match exact locker_id or name
-                if (l.locker_id === payload.door || l.name === payload.door) {
-                  return true;
-                }
-                // Match door pattern (e.g., "M7-8" matches "M7-8-A", "M7-8-B")
-                if (l.locker_id && l.locker_id.startsWith(payload.door + '-')) {
-                  return true;
-                }
-                // Match name pattern (e.g., "M7-8" matches "M7A", "M7B" if door is "M7-8")
-                if (l.name && payload.door.includes('-')) {
-                  const doorParts = payload.door.split('-');
-                  const lockerName = l.name;
-                  // Check if locker name matches the door pattern (e.g., "M7A" for "M7-8")
-                  if (doorParts.length >= 2) {
-                    const baseDoor = doorParts[0]; // "M7"
-                    const lockerBase = lockerName.replace(/[AB]$/, ''); // Remove A/B suffix
-                    if (lockerBase === baseDoor) {
-                      return true;
-                    }
+              // Check if card was scanned on its own assigned locker (event message with WARN type)
+              // payload.door is like "M7-8", assignedLocker.locker_id is like "M7-8-B", assignedLocker.name is like "M7B"
+              const isOwnLockerScan = payload.cmd === 'event' && payload.type === 'WARN' && payload.src === 'rfid' &&
+                                     (payload.door === assignedLocker.locker_id || 
+                                      payload.door === assignedLocker.name ||
+                                      assignedLocker.locker_id.startsWith(payload.door + '-') ||
+                                      assignedLocker.name.startsWith(payload.door.replace('-', '')));
+              
+              console.log(`🔍 Own locker detection debug:
+                - payload.cmd: "${payload.cmd}"
+                - payload.type: "${payload.type}" 
+                - payload.src: "${payload.src}"
+                - payload.door: "${payload.door}"
+                - assignedLocker.locker_id: "${assignedLocker.locker_id}"
+                - assignedLocker.name: "${assignedLocker.name}"
+                - startsWith check: ${assignedLocker.locker_id.startsWith(payload.door + '-')}
+                - isOwnLockerScan: ${isOwnLockerScan}`);
+              
+              // Always unlock the assigned locker (no group restrictions)
+              console.log(`🔓 Unlocking assigned locker ${assignedLocker.name} for user ${user.first_name} ${user.last_name} (card scanned at ${payload.door})`);
+              
+              if (isOwnLockerScan) {
+                console.log(`🎯 Own locker scan detected - applying 1500ms delay`);
+              } else {
+                console.log(`📡 Remote locker scan - applying 500ms delay`);
+              }
+              
+              // Send unlock command via MQTT with retain flag
+              console.log(`🔓 ENTERING RETAINED-UNLOCK DELAY SECTION - mqttClient: ${!!mqttClient}, isConnected: ${isConnected}`);
+              if (mqttClient && isConnected) {
+                const command = {
+                  cmd: 'openlock',
+                  doorip: assignedLocker.ip_address,
+                  lock: assignedLocker.num_locks || 1
+                };
+                console.log(`🔓 Retained unlock command for assigned locker ${assignedLocker.name} (${assignedLocker.locker_id})`);
+                
+                // Determine delay based on scan type
+                const delayMs = isOwnLockerScan ? 1500 : 500;
+                console.log(`⏰ Starting ${delayMs}ms delay...`);
+                const startTime = Date.now();
+                
+                // Synchronous delay function that actually blocks
+                const sleep = (ms) => {
+                  const start = Date.now();
+                  console.log(`⏰ Sleep started at ${start}, target: ${start + ms}ms`);
+                  while (Date.now() - start < ms) {
+                    // Busy wait - this will actually block for the full duration
                   }
-                }
-                return false;
+                  console.log(`⏰ Sleep ended at ${Date.now()}, actual duration: ${Date.now() - start}ms`);
+                };
+                
+                sleep(delayMs); // Variable delay based on scan type
+                const endTime = Date.now();
+                console.log(`⏰ Delay completed after ${endTime - startTime}ms`);
+                console.log(`🔓 Publishing RETAINED unlock command...`);
+                
+                // Publish with retain flag for guaranteed delivery
+                mqttClient.publish('lockers/cmd', JSON.stringify(command), { retain: true });
+              }
+              
+              // Log activity
+              await db.logActivity({
+                user_id: user.id,
+                locker_id: assignedLocker.id,
+                action: 'rfid_unlock_assigned',
+                details: { 
+                  rfid_tag: payload.uid, 
+                  scanning_door: payload.door,
+                  assigned_locker: assignedLocker.name,
+                  access_granted: true 
+                },
               });
               
-              if (scanningLocker) {
-                // Check if scanning locker is in the same group as assigned locker
-                const assignedLockerGroup = await db.getLockerGroup(assignedLocker.id);
-                const scanningLockerGroup = await db.getLockerGroup(scanningLocker.id);
-                
-                const sameGroup = assignedLockerGroup && scanningLockerGroup && 
-                                 assignedLockerGroup.id === scanningLockerGroup.id;
-                
-                if (sameGroup) {
-                  // Same group - unlock the assigned locker
-                  console.log(`🔓 Unlocking assigned locker ${assignedLocker.name} for user ${user.first_name} ${user.last_name} (same group access)`);
-                  console.log(`🔓 About to send unlock command with 1.5 second delay...`);
-                  
-                  // Send unlock command via MQTT with delay
-                  console.log(`🔓 ENTERING DELAY SECTION - mqttClient: ${!!mqttClient}, isConnected: ${isConnected}`);
-                  if (mqttClient && isConnected) {
-                    const command = {
-                      cmd: 'openlock',
-                      doorip: assignedLocker.ip_address,
-                      lock: assignedLocker.num_locks || 1
-                    };
-                    console.log(`🔓 Unlock command sent for assigned locker ${assignedLocker.name} (${assignedLocker.locker_id})`);
-                    console.log(`⏰ Starting 1.5 second delay...`);
-                    const startTime = Date.now();
-                    
-                    // Synchronous delay function that actually blocks
-                    const sleep = (ms) => {
-                      const start = Date.now();
-                      console.log(`⏰ Sleep started at ${start}, target: ${start + ms}ms`);
-                      while (Date.now() - start < ms) {
-                        // Busy wait - this will actually block for the full duration
-                      }
-                      console.log(`⏰ Sleep ended at ${Date.now()}, actual duration: ${Date.now() - start}ms`);
-                    };
-                    
-                    sleep(1500); // 1.5 second delay
-                    const endTime = Date.now();
-                    console.log(`⏰ Delay completed after ${endTime - startTime}ms`);
-                    mqttClient.publish('lockers/cmd', JSON.stringify(command));
-                  }
-                  
-                  // Log activity
-                  await db.logActivity({
-                    user_id: user.id,
-                    locker_id: assignedLocker.id,
-                    action: 'rfid_unlock_assigned',
-                    details: { 
-                      rfid_tag: payload.uid, 
-                      scanning_door: payload.door,
-                      assigned_locker: assignedLocker.name,
-                      same_group: true,
-                      access_granted: true 
-                    },
-                  });
-                  
-                  console.log(`✅ RFID unlock successful: ${user.first_name} ${user.last_name} unlocked ${assignedLocker.name}`);
-                } else {
-                  // Different group - deny access
-                  console.log(`❌ Access denied: User ${user.first_name} ${user.last_name} assigned to ${assignedLocker.name} but scanning at ${scanningLocker ? scanningLocker.name : payload.door} (different group)`);
-                  
-                  // Log denied access
-                  await db.logActivity({
-                    user_id: user.id,
-                    action: 'rfid_access_denied',
-                    details: { 
-                      rfid_tag: payload.uid, 
-                      scanning_door: payload.door,
-                      assigned_locker: assignedLocker.name,
-                      reason: 'different_group',
-                      access_granted: false 
-                    },
-                  });
-                }
-              } else {
-                console.log(`❌ Scanning locker not found for door: ${payload.door}`);
-                
-                // Log activity for unknown door
-                await db.logActivity({
-                  user_id: user.id,
-                  action: 'rfid_unknown_door',
-                  details: { 
-                    rfid_tag: payload.uid, 
-                    door: payload.door,
-                    assigned_locker: assignedLocker.name,
-                    access_granted: false 
-                  },
-                });
-              }
+              console.log(`✅ RFID unlock successful: ${user.first_name} ${user.last_name} unlocked ${assignedLocker.name}`);
             } else {
               console.log(`❌ Assigned locker not found for user ${user.id}`);
             }
@@ -588,7 +569,7 @@ async function handleMqttMessage(topic, message) {
                     lock: availableLocker.num_locks || 1
                   };
                   console.log(`🔓 Unlock command sent for locker ${availableLocker.name} (${availableLocker.locker_id})`);
-                  console.log(`⏰ Starting 500 ms delay...`);
+                  console.log(`⏰ Starting 200ms delay...`);
                   const startTime = Date.now();
                   
                   // Synchronous delay function that actually blocks
@@ -601,11 +582,13 @@ async function handleMqttMessage(topic, message) {
                     console.log(`⏰ Sleep ended at ${Date.now()}, actual duration: ${Date.now() - start}ms`);
                   };
                   
-                  sleep(500); // 500 ms delay
+                  sleep(200); // 200ms delay (consistent with assigned locker logic)
                   const endTime = Date.now();
                   console.log(`⏰ Delay completed after ${endTime - startTime}ms`);
                   mqttClient.publish('lockers/cmd', JSON.stringify(command));
                 }
+                
+                // Skip adduser command - rely only on openlock MQTT commands
                 
                 // Log activity
                 await db.logActivity({
@@ -630,20 +613,145 @@ async function handleMqttMessage(topic, message) {
                 
                 console.log(`✅ RFID auto-assignment successful: ${user.first_name} ${user.last_name} assigned to ${availableLocker.name}`);
               } else {
-                console.log(`❌ No available lockers found for door ${payload.door}. All matching lockers are occupied:`);
+                console.log(`⚠️ No available lockers found for exact door ${payload.door}. Searching for closest available locker...`);
                 matchingLockers.forEach(l => console.log(`   - ${l.name} (${l.locker_id}): ${l.status}`));
                 
-                // Log denied access
-                await db.logActivity({
-                  user_id: user.id,
-                  action: 'rfid_access_denied',
-                  details: { 
-                    rfid_tag: payload.uid, 
-                    door: payload.door,
-                    reason: 'no_available_lockers',
-                    matching_lockers: matchingLockers.map(l => ({ name: l.name, status: l.status }))
-                  },
-                });
+                // Find available locker strictly within the same group
+                // First, determine which group the scanned door belongs to
+                let scannedLockerGroup = null;
+                let anyAvailableLocker = null;
+                
+                // Find the group of any matching locker
+                if (matchingLockers.length > 0) {
+                  scannedLockerGroup = await db.getLockerGroup(matchingLockers[0].id);
+                  console.log(`🏷️ Scanned locker group:`, scannedLockerGroup?.name || 'No group found');
+                  
+                  if (scannedLockerGroup) {
+                    // Ensure locker_ids is properly populated
+                    const lockerIds = scannedLockerGroup.locker_ids || [];
+                    console.log(`🔍 Group locker_ids:`, lockerIds);
+                    
+                    // Get all lockers in the same group
+                    const groupLockers = allLockers.filter(l => 
+                      lockerIds.includes(l.id)
+                    );
+                    console.log(`🎯 Searching ${groupLockers.length} lockers in group "${scannedLockerGroup.name}" for availability`);
+                    
+                    // Find available locker within the same group only
+                    anyAvailableLocker = groupLockers.find(l => l.status === 'available');
+                    
+                    if (anyAvailableLocker) {
+                      console.log(`🔄 Found available locker in same group: ${anyAvailableLocker.name} (group: ${scannedLockerGroup.name})`);
+                    } else {
+                      console.log(`❌ No available lockers found in group "${scannedLockerGroup.name}"`);
+                      groupLockers.forEach(l => console.log(`   - ${l.name}: ${l.status}`));
+                    }
+                  } else {
+                    console.log(`❌ No group found for scanned door ${payload.door}, cannot assign`);
+                  }
+                } else {
+                  console.log(`❌ No matching lockers found for door ${payload.door}, cannot determine group`);
+                }
+                
+                if (anyAvailableLocker && scannedLockerGroup) {
+                  console.log(`🔄 Assigning available locker in same group: ${anyAvailableLocker.name} (group: ${scannedLockerGroup.name})`);
+                  
+                  // Assign the closest available locker to user and open it
+                  const expiryDate = await getLockerExpiryTime();
+                  await db.updateLocker(anyAvailableLocker.id, { 
+                    status: 'occupied', 
+                    user_id: user.id, 
+                    last_used: new Date() 
+                  });
+                  await db.updateUser(user.id, { 
+                    locker_id: anyAvailableLocker.id, 
+                    valid_until: expiryDate 
+                  });
+                  
+                  // Send unlock command via MQTT with delay
+                  console.log(`🔓 ENTERING CLOSEST-LOCKER DELAY SECTION - mqttClient: ${!!mqttClient}, isConnected: ${isConnected}`);
+                  if (mqttClient && isConnected) {
+                    const command = {
+                      cmd: 'openlock',
+                      doorip: anyAvailableLocker.ip_address,
+                      lock: anyAvailableLocker.num_locks || 1
+                    };
+                    console.log(`🔓 Unlock command sent for closest locker ${anyAvailableLocker.name} (${anyAvailableLocker.locker_id})`);
+                    console.log(`⏰ Starting 1500ms delay...`);
+                    const startTime = Date.now();
+                    
+                    // Synchronous delay function that actually blocks
+                    const sleep = (ms) => {
+                      const start = Date.now();
+                      console.log(`⏰ Sleep started at ${start}, target: ${start + ms}ms`);
+                      while (Date.now() - start < ms) {
+                        // Busy wait - this will actually block for the full duration
+                      }
+                      console.log(`⏰ Sleep ended at ${Date.now()}, actual duration: ${Date.now() - start}ms`);
+                    };
+                    
+                    sleep(1500); // 1500ms delay
+                    const endTime = Date.now();
+                    console.log(`⏰ Delay completed after ${endTime - startTime}ms`);
+                    mqttClient.publish('lockers/cmd', JSON.stringify(command));
+                  }
+                  
+                  // Skip adduser command - rely only on openlock MQTT commands
+                  
+                  // Update caches
+                  lockersCache = await db.getAllLockers();
+                  usersCache = await db.getAllUsers();
+                  
+                  // Log activity
+                  await db.logActivity({
+                    user_id: user.id,
+                    locker_id: anyAvailableLocker.id,
+                    action: 'rfid_auto_assign_same_group',
+                    details: { 
+                      rfid_tag: payload.uid, 
+                      scanning_door: payload.door,
+                      assigned_locker: anyAvailableLocker.name,
+                      group_name: scannedLockerGroup.name,
+                      group_id: scannedLockerGroup.id,
+                      reason: 'requested_locker_occupied',
+                      access_granted: true 
+                    },
+                  });
+                  
+                  // Emit events
+                  io.emit('locker-updated', await db.getLockerById(anyAvailableLocker.id));
+                  io.emit('user-updated', await db.getUserById(user.id));
+                  
+                  console.log(`✅ Auto-assigned same-group locker: ${user.first_name} ${user.last_name} assigned to ${anyAvailableLocker.name} in group ${scannedLockerGroup.name} (requested ${payload.door})`);
+                } else {
+                  // Determine specific failure reason
+                  let reason = 'unknown';
+                  let message = '';
+                  
+                  if (!scannedLockerGroup) {
+                    reason = 'no_group_found';
+                    message = `❌ No group found for scanned door ${payload.door}, assignment denied`;
+                  } else {
+                    reason = 'no_available_lockers_in_group';
+                    message = `❌ No available lockers found in group "${scannedLockerGroup.name}"`;
+                  }
+                  
+                  console.log(message);
+                  
+                  // Log denied access with specific reason
+                  await db.logActivity({
+                    user_id: user.id,
+                    action: 'rfid_access_denied',
+                    details: { 
+                      rfid_tag: payload.uid, 
+                      door: payload.door,
+                      group_name: scannedLockerGroup?.name || null,
+                      group_id: scannedLockerGroup?.id || null,
+                      reason: reason,
+                      access_granted: false 
+                    },
+                  });
+                }
               }
             } else {
               console.log(`❌ No lockers found matching door pattern: ${payload.door}`);
@@ -1754,7 +1862,27 @@ app.post('/api/lockers/bulk-unlock', async (req, res) => {
 app.get('/api/groups', async (req, res) => {
   try {
     const groups = await db.getAllGroups();
-    res.json(groups);
+    const allLockers = await db.getAllLockers();
+    
+    // Enhance groups with locker availability information
+    const enhancedGroups = groups.map(group => {
+      const groupLockers = allLockers.filter(locker => 
+        group.locker_ids.includes(locker.id)
+      );
+      
+      const availableLockers = groupLockers.filter(l => l.status === 'available');
+      const occupiedLockers = groupLockers.filter(l => l.status === 'occupied');
+      
+      return {
+        ...group,
+        lockers: groupLockers,
+        available: availableLockers.length,
+        occupied: occupiedLockers.length,
+        total: groupLockers.length
+      };
+    });
+    
+    res.json(enhancedGroups);
   } catch (error) {
     console.error('❌ Error fetching groups:', error);
     res.status(500).json({ error: 'Failed to fetch groups' });
@@ -1767,7 +1895,23 @@ app.get('/api/groups/:id', async (req, res) => {
     const { id } = req.params;
     const group = await db.getGroupById(id);
     if (group) {
-      res.json(group);
+      const allLockers = await db.getAllLockers();
+      const groupLockers = allLockers.filter(locker => 
+        group.locker_ids.includes(locker.id)
+      );
+      
+      const availableLockers = groupLockers.filter(l => l.status === 'available');
+      const occupiedLockers = groupLockers.filter(l => l.status === 'occupied');
+      
+      const enhancedGroup = {
+        ...group,
+        lockers: groupLockers,
+        available: availableLockers.length,
+        occupied: occupiedLockers.length,
+        total: groupLockers.length
+      };
+      
+      res.json(enhancedGroup);
     } else {
       res.status(404).json({ error: 'Group not found' });
     }

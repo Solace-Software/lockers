@@ -6,10 +6,36 @@ module.exports = function(db, systemSettings, connectMQTT) {
   router.get('/', async (req, res) => {
     try {
       const settings = await db.getAllSettings();
+      
+      // Create clean response object to avoid circular references
       const response = {
-        mqttConfig: systemSettings.mqttConfig,
-        notifications: systemSettings.notifications,
-        systemSettings: systemSettings.systemSettings
+        mqttConfig: systemSettings.mqttConfig ? {
+          host: systemSettings.mqttConfig.host || '',
+          port: systemSettings.mqttConfig.port || 1883,
+          username: systemSettings.mqttConfig.username || '',
+          password: systemSettings.mqttConfig.password || '',
+          clientId: systemSettings.mqttConfig.clientId || 'gym-admin',
+          allowAnonymous: systemSettings.mqttConfig.allowAnonymous || false
+        } : null,
+        notifications: systemSettings.notifications ? {
+          emailAlerts: systemSettings.notifications.emailAlerts || false,
+          usageReports: systemSettings.notifications.usageReports || false,
+          realTimeUpdates: systemSettings.notifications.realTimeUpdates || true
+        } : {
+          emailAlerts: false,
+          usageReports: false,
+          realTimeUpdates: true
+        },
+        systemSettings: systemSettings.systemSettings ? {
+          autoRefresh: systemSettings.systemSettings.autoRefresh || 30,
+          dataRetention: systemSettings.systemSettings.dataRetention || 90,
+          lockerExpiryMinutes: systemSettings.systemSettings.lockerExpiryMinutes || 
+                              (systemSettings.systemSettings.lockerExpiryHours ? systemSettings.systemSettings.lockerExpiryHours * 60 : 1440)
+        } : {
+          autoRefresh: 30,
+          dataRetention: 90,
+          lockerExpiryMinutes: 1440
+        }
       };
 
       // Override with database settings if they exist
@@ -17,10 +43,12 @@ module.exports = function(db, systemSettings, connectMQTT) {
         settings.forEach(setting => {
           if (setting.key === 'mqttConfig' && setting.value) {
             // MySQL JSON type already parses the value, so use it directly if it's an object
-            response.mqttConfig = typeof setting.value === 'string' ? JSON.parse(setting.value) : setting.value;
+            const dbMqttConfig = typeof setting.value === 'string' ? JSON.parse(setting.value) : setting.value;
+            response.mqttConfig = { ...response.mqttConfig, ...dbMqttConfig };
           } else if (setting.key === 'notifications' && setting.value) {
             // MySQL JSON type already parses the value, so use it directly if it's an object
-            response.notifications = typeof setting.value === 'string' ? JSON.parse(setting.value) : setting.value;
+            const dbNotifications = typeof setting.value === 'string' ? JSON.parse(setting.value) : setting.value;
+            response.notifications = { ...response.notifications, ...dbNotifications };
           } else if (setting.key === 'systemSettings' && setting.value) {
             // MySQL JSON type already parses the value, so use it directly if it's an object
             const dbSystemSettings = typeof setting.value === 'string' ? JSON.parse(setting.value) : setting.value;

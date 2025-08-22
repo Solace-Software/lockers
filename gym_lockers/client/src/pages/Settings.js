@@ -39,9 +39,7 @@ const Settings = () => {
   const [systemSettings, setSystemSettings] = useState({
     autoRefresh: 30,
     dataRetention: 90,
-    backupEnabled: true,
-    debugMode: false,
-    lockerExpiryHours: 24
+    lockerExpiryMinutes: 1440  // Default 24 hours in minutes
   });
 
   // MQTT Listener state
@@ -73,7 +71,10 @@ const Settings = () => {
         if (settings.systemSettings) {
           setSystemSettings(prevSettings => ({
             ...prevSettings,
-            ...settings.systemSettings
+            ...settings.systemSettings,
+            // Convert legacy lockerExpiryHours to lockerExpiryMinutes if needed
+            lockerExpiryMinutes: settings.systemSettings.lockerExpiryMinutes || 
+                                (settings.systemSettings.lockerExpiryHours ? settings.systemSettings.lockerExpiryHours * 60 : 1440)
           }));
         }
         
@@ -87,10 +88,16 @@ const Settings = () => {
         const savedMqttListener = localStorage.getItem('mqttListener');
 
         if (savedMqtt) setMqttConfig(JSON.parse(savedMqtt));
-        if (savedSystem) setSystemSettings(prevSettings => ({
-          ...prevSettings,
-          ...JSON.parse(savedSystem)
-        }));
+        if (savedSystem) {
+          const parsedSystem = JSON.parse(savedSystem);
+          setSystemSettings(prevSettings => ({
+            ...prevSettings,
+            ...parsedSystem,
+            // Convert legacy lockerExpiryHours to lockerExpiryMinutes if needed
+            lockerExpiryMinutes: parsedSystem.lockerExpiryMinutes || 
+                                (parsedSystem.lockerExpiryHours ? parsedSystem.lockerExpiryHours * 60 : 1440)
+          }));
+        }
         if (savedMqttListener) setMqttListener(prev => ({ ...prev, ...JSON.parse(savedMqttListener), messages: [], isListening: false }));
       }
     };
@@ -656,115 +663,25 @@ const Settings = () => {
 
             <div>
               <label className="block text-sm font-medium text-cyan-200 mb-1">
-                Default Locker Assignment Duration
+                Default Locker Assignment Duration (minutes)
               </label>
-              <select
-                value={systemSettings.lockerExpiryHours}
-                onChange={(e) => setSystemSettings({ ...systemSettings, lockerExpiryHours: parseInt(e.target.value) })}
-                className="input"
-              >
-                <option value={1}>1 hour</option>
-                <option value={2}>2 hours</option>
-                <option value={4}>4 hours</option>
-                <option value={8}>8 hours</option>
-                <option value={12}>12 hours</option>
-                <option value={24}>24 hours (1 day)</option>
-                <option value={48}>48 hours (2 days)</option>
-                <option value={72}>72 hours (3 days)</option>
-                <option value={168}>1 week</option>
-                <option value={336}>2 weeks</option>
-                <option value={720}>1 month</option>
-              </select>
+              <Input
+                type="number"
+                value={systemSettings.lockerExpiryMinutes}
+                onChange={(e) => setSystemSettings({ ...systemSettings, lockerExpiryMinutes: parseInt(e.target.value) })}
+                placeholder="1440"
+                min="1"
+              />
+              <p className="text-xs text-cyan-200 mt-1">
+                Duration in minutes (e.g., 60 = 1 hour, 1440 = 24 hours)
+              </p>
             </div>
 
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-white">Automatic Backups</p>
-                <p className="text-xs text-cyan-200">Daily backup of system data</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={systemSettings.backupEnabled}
-                  onChange={(e) => setSystemSettings({ ...systemSettings, backupEnabled: e.target.checked })}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-              </label>
-            </div>
 
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-white">Debug Mode</p>
-                <p className="text-xs text-cyan-200">Enable detailed logging</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={systemSettings.debugMode}
-                  onChange={(e) => setSystemSettings({ ...systemSettings, debugMode: e.target.checked })}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-              </label>
-            </div>
           </div>
         </DashboardCard>
 
-        {/* Security */}
-        <DashboardCard>
-          <div className="flex items-center space-x-3 mb-6">
-            <MessageCircle className="w-6 h-6 text-cyan-400" />
-            <h3 className="text-lg font-semibold text-white">Security</h3>
-          </div>
 
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-cyan-200 mb-1">
-                Session Timeout (minutes)
-              </label>
-              <select className="input">
-                <option value={15}>15 minutes</option>
-                <option value={30}>30 minutes</option>
-                <option value={60}>1 hour</option>
-                <option value={480}>8 hours</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-cyan-200 mb-1">
-                Password Policy
-              </label>
-              <select className="input">
-                <option value="standard">Standard (8+ characters)</option>
-                <option value="strong">Strong (12+ characters, symbols)</option>
-                <option value="enterprise">Enterprise (16+ characters, complex)</option>
-              </select>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-white">Two-Factor Authentication</p>
-                <p className="text-xs text-cyan-200">Require 2FA for admin access</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" className="sr-only peer" />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-              </label>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-white">Audit Logging</p>
-                <p className="text-xs text-cyan-200">Log all admin actions</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" className="sr-only peer" defaultChecked />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-              </label>
-            </div>
-          </div>
-        </DashboardCard>
       </div>
 
       {/* Save Button */}
