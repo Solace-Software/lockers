@@ -85,6 +85,10 @@ let groupsCache = [];
 const OFFLINE_CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes in milliseconds
 let offlineCheckInterval = null;
 
+// Locker expiry check interval (every 10 minutes)
+const EXPIRY_CHECK_INTERVAL = 10 * 60 * 1000; // 10 minutes in milliseconds
+let expiryCheckInterval = null;
+
 // --- MQTT Connection Management with Resilient Reconnect ---
 let mqttReconnectDelay = 5000; // Start with 5 seconds
 const MQTT_RECONNECT_MAX = 60000; // Max 60 seconds
@@ -241,17 +245,107 @@ async function getLockerExpiryTime() {
     const settings = await db.getAllSettings();
     const systemSettings = settings.find(s => s.key === 'systemSettings');
     
-    if (systemSettings && systemSettings.value && systemSettings.value.lockerExpiryHours) {
-      const hours = systemSettings.value.lockerExpiryHours;
-      return new Date(Date.now() + hours * 60 * 60 * 1000);
+    let minutes = 1440; // Default to 24 hours (1440 minutes)
+    
+    if (systemSettings && systemSettings.value) {
+      // Use lockerExpiryMinutes if available, otherwise convert from legacy lockerExpiryHours
+      if (systemSettings.value.lockerExpiryMinutes) {
+        minutes = systemSettings.value.lockerExpiryMinutes;
+      } else if (systemSettings.value.lockerExpiryHours) {
+        minutes = systemSettings.value.lockerExpiryHours * 60;
+      }
     }
     
-    // Default to 24 hours if setting not found
-    return new Date(Date.now() + 24 * 60 * 60 * 1000);
+    return new Date(Date.now() + minutes * 60 * 1000);
   } catch (error) {
     console.error('❌ Error getting locker expiry time from settings:', error);
-    // Default to 24 hours on error
-    return new Date(Date.now() + 24 * 60 * 60 * 1000);
+    // Default to 24 hours (1440 minutes) on error
+    return new Date(Date.now() + 1440 * 60 * 1000);
+  }
+}
+
+// Function to check and expire locker assignments
+async function checkExpiredLockers() {
+  try {
+    console.log('🕐 Checking for expired locker assignments...');
+    
+    const allUsers = await db.getAllUsers();
+    const allLockers = await db.getAllLockers();
+    const now = new Date();
+    
+    let expiredCount = 0;
+    
+    for (const user of allUsers) {
+      if (user.locker_id && user.valid_until) {
+        const expiryDate = new Date(user.valid_until);
+        
+        if (expiryDate <= now) {
+          console.log(`⏰ Expiring locker assignment for user ${user.username} (expired: ${expiryDate.toISOString()})`);
+          
+          // Find the locker
+          const locker = allLockers.find(l => l.id === user.locker_id);
+          
+          if (locker) {
+            // Update user - remove locker assignment
+            await db.updateUser(user.id, {
+              locker_id: null,
+              valid_until: null
+            });
+            
+            // Update locker - set to available
+            await db.updateLocker(locker.id, {
+              status: 'available',
+              user_id: null
+            });
+            
+            // Send MQTT command to remove user from locker
+            if (mqttClient && isConnected) {
+              const command = {
+                cmd: "deluser",
+                doorip: locker.ip_address,
+                uid: user.id
+              };
+              
+              mqttClient.publish(`${locker.topic}/cmd`, JSON.stringify(command));
+              console.log(`📡 Sent deluser command for expired assignment: ${JSON.stringify(command)}`);
+            }
+            
+            // Log activity
+            await db.logActivity({
+              user_id: user.id,
+              locker_id: locker.id,
+              action: 'auto_expire_locker',
+              details: { 
+                lockerId: locker.id, 
+                userId: user.id, 
+                expiryDate: user.valid_until,
+                expiredAt: now.toISOString()
+              }
+            });
+            
+            // Emit socket events for real-time updates
+            if (io) {
+              io.emit('locker-updated', { ...locker, status: 'available', user_id: null });
+              io.emit('user-updated', { ...user, locker_id: null, valid_until: null });
+            }
+            
+            expiredCount++;
+          }
+        }
+      }
+    }
+    
+    if (expiredCount > 0) {
+      console.log(`✅ Expired ${expiredCount} locker assignment(s)`);
+      // Update caches after expiring assignments
+      lockersCache = await db.getAllLockers();
+      usersCache = await db.getAllUsers();
+    } else {
+      console.log('✅ No expired locker assignments found');
+    }
+    
+  } catch (error) {
+    console.error('❌ Error checking expired lockers:', error);
   }
 }
 
@@ -462,52 +556,52 @@ async function handleMqttMessage(topic, message) {
               
               // Send unlock command via MQTT with retain flag
               console.log(`🔓 ENTERING RETAINED-UNLOCK DELAY SECTION - mqttClient: ${!!mqttClient}, isConnected: ${isConnected}`);
-              if (mqttClient && isConnected) {
-                const command = {
-                  cmd: 'openlock',
-                  doorip: assignedLocker.ip_address,
-                  lock: assignedLocker.num_locks || 1
-                };
+                  if (mqttClient && isConnected) {
+                    const command = {
+                      cmd: 'openlock',
+                      doorip: assignedLocker.ip_address,
+                      lock: assignedLocker.num_locks || 1
+                    };
                 console.log(`🔓 Retained unlock command for assigned locker ${assignedLocker.name} (${assignedLocker.locker_id})`);
                 
                 // Determine delay based on scan type
                 const delayMs = isOwnLockerScan ? 1500 : 500;
                 console.log(`⏰ Starting ${delayMs}ms delay...`);
-                const startTime = Date.now();
-                
-                // Synchronous delay function that actually blocks
-                const sleep = (ms) => {
-                  const start = Date.now();
-                  console.log(`⏰ Sleep started at ${start}, target: ${start + ms}ms`);
-                  while (Date.now() - start < ms) {
-                    // Busy wait - this will actually block for the full duration
-                  }
-                  console.log(`⏰ Sleep ended at ${Date.now()}, actual duration: ${Date.now() - start}ms`);
-                };
-                
+                    const startTime = Date.now();
+                    
+                    // Synchronous delay function that actually blocks
+                    const sleep = (ms) => {
+                      const start = Date.now();
+                      console.log(`⏰ Sleep started at ${start}, target: ${start + ms}ms`);
+                      while (Date.now() - start < ms) {
+                        // Busy wait - this will actually block for the full duration
+                      }
+                      console.log(`⏰ Sleep ended at ${Date.now()}, actual duration: ${Date.now() - start}ms`);
+                    };
+                    
                 sleep(delayMs); // Variable delay based on scan type
-                const endTime = Date.now();
-                console.log(`⏰ Delay completed after ${endTime - startTime}ms`);
+                    const endTime = Date.now();
+                    console.log(`⏰ Delay completed after ${endTime - startTime}ms`);
                 console.log(`🔓 Publishing RETAINED unlock command...`);
                 
                 // Publish with retain flag for guaranteed delivery
                 mqttClient.publish('lockers/cmd', JSON.stringify(command), { retain: true });
-              }
-              
-              // Log activity
-              await db.logActivity({
-                user_id: user.id,
-                locker_id: assignedLocker.id,
-                action: 'rfid_unlock_assigned',
-                details: { 
-                  rfid_tag: payload.uid, 
-                  scanning_door: payload.door,
-                  assigned_locker: assignedLocker.name,
-                  access_granted: true 
-                },
-              });
-              
-              console.log(`✅ RFID unlock successful: ${user.first_name} ${user.last_name} unlocked ${assignedLocker.name}`);
+                  }
+                  
+                  // Log activity
+                  await db.logActivity({
+                    user_id: user.id,
+                    locker_id: assignedLocker.id,
+                    action: 'rfid_unlock_assigned',
+                    details: { 
+                      rfid_tag: payload.uid, 
+                      scanning_door: payload.door,
+                      assigned_locker: assignedLocker.name,
+                      access_granted: true 
+                    },
+                  });
+                  
+                  console.log(`✅ RFID unlock successful: ${user.first_name} ${user.last_name} unlocked ${assignedLocker.name}`);
             } else {
               console.log(`❌ Assigned locker not found for user ${user.id}`);
             }
@@ -739,18 +833,18 @@ async function handleMqttMessage(topic, message) {
                   console.log(message);
                   
                   // Log denied access with specific reason
-                  await db.logActivity({
-                    user_id: user.id,
-                    action: 'rfid_access_denied',
-                    details: { 
-                      rfid_tag: payload.uid, 
-                      door: payload.door,
+                await db.logActivity({
+                  user_id: user.id,
+                  action: 'rfid_access_denied',
+                  details: { 
+                    rfid_tag: payload.uid, 
+                    door: payload.door,
                       group_name: scannedLockerGroup?.name || null,
                       group_id: scannedLockerGroup?.id || null,
                       reason: reason,
                       access_granted: false 
-                    },
-                  });
+                  },
+                });
                 }
               }
             } else {
@@ -2284,6 +2378,10 @@ async function startServer() {
     // Start offline detection interval
     offlineCheckInterval = setInterval(checkOfflineLockers, OFFLINE_CHECK_INTERVAL);
     console.log('⏰ Started offline detection (checking every 5 minutes)');
+    
+    // Start locker expiry check interval
+    expiryCheckInterval = setInterval(checkExpiredLockers, EXPIRY_CHECK_INTERVAL);
+    console.log('⏰ Started locker expiry check (checking every 10 minutes)');
   } catch (error) {
     console.error('❌ Failed to start server:', error);
     process.exit(1);
@@ -2357,6 +2455,13 @@ async function cleanup() {
     clearInterval(offlineCheckInterval);
     offlineCheckInterval = null;
     console.log('⏰ Stopped offline detection interval');
+  }
+  
+  // Clear expiry check interval
+  if (expiryCheckInterval) {
+    clearInterval(expiryCheckInterval);
+    expiryCheckInterval = null;
+    console.log('⏰ Stopped locker expiry check interval');
   }
 
   // Track cleanup status
@@ -2609,15 +2714,33 @@ app.get('/api/settings/locker-expiry', async (req, res) => {
     const settings = await db.getAllSettings();
     const systemSettings = settings.find(s => s.key === 'systemSettings');
     
-    let lockerExpiryHours = 24; // default
-    if (systemSettings && systemSettings.value && systemSettings.value.lockerExpiryHours) {
+    let lockerExpiryHours = 24; // default (24 hours)
+    
+    if (systemSettings && systemSettings.value) {
+      // Use lockerExpiryMinutes if available, otherwise fall back to legacy lockerExpiryHours
+      if (systemSettings.value.lockerExpiryMinutes) {
+        lockerExpiryHours = systemSettings.value.lockerExpiryMinutes / 60; // Convert minutes to hours
+      } else if (systemSettings.value.lockerExpiryHours) {
       lockerExpiryHours = systemSettings.value.lockerExpiryHours;
+      }
     }
     
     res.json({ lockerExpiryHours });
   } catch (error) {
     console.error('❌ Error getting locker expiry setting:', error);
     res.status(500).json({ error: 'Failed to get locker expiry setting' });
+  }
+});
+
+// Manual trigger for expiry check (for testing/admin purposes)
+app.post('/api/admin/check-expired-lockers', async (req, res) => {
+  try {
+    console.log('🔧 Manual expiry check triggered via API');
+    await checkExpiredLockers();
+    res.json({ success: true, message: 'Expiry check completed' });
+  } catch (error) {
+    console.error('❌ Error in manual expiry check:', error);
+    res.status(500).json({ error: 'Failed to check expired lockers' });
   }
 });
 
