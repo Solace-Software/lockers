@@ -671,7 +671,8 @@ class Database {
             INSERT INTO group_lockers (group_id, locker_id)
             VALUES ${locker_ids.map((_, i) => `(?, ?)`).join(', ')}
           `;
-          await conn.query(lockerQuery, [id, ...locker_ids]);
+          const lockerValues = locker_ids.flatMap(lockerId => [id, lockerId]);
+          await conn.query(lockerQuery, lockerValues);
         }
       }
       

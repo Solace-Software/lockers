@@ -2,15 +2,18 @@
 
 # Remote SSH Connection Script
 # Use this script to connect to your Gym Lockers server from anywhere
+# Updated with free alternatives to Tailscale
 
 # Configuration
 SERVER_LOCAL_IP="192.168.10.31"
-SERVER_PUBLIC_IP="154.183.243.169"  # Update this with your actual public IP
+SERVER_PUBLIC_IP="100.81.165.23"  # Updated with actual server IP
 SSH_PORT="22"
 SSH_USER="root"
 
 echo "🌐 Gym Lockers Remote SSH Connection"
 echo "===================================="
+echo "🆓 Free alternatives to Tailscale available!"
+echo ""
 
 # Function to test connection
 test_connection() {
@@ -54,8 +57,10 @@ echo "2. Connect via Local IP (same network)"
 echo "3. Test connectivity first"
 echo "4. Setup SSH key authentication"
 echo "5. Show connection info"
+echo "6. 🆓 Setup free alternatives to Tailscale"
+echo "7. 🔗 Use unified connection (all methods)"
 echo ""
-read -p "Enter choice (1-5): " choice
+read -p "Enter choice (1-7): " choice
 
 case $choice in
     1)
@@ -128,6 +133,29 @@ case $choice in
         echo "🔧 Gym Lockers Web Interface:"
         echo "Local:  http://$SERVER_LOCAL_IP:3001"
         echo "Remote: http://$SERVER_PUBLIC_IP:3001 (if port forwarded)"
+        ;;
+    6)
+        echo "🆓 Setting up free alternatives to Tailscale..."
+        if [ -f "./setup-free-remote-ssh.sh" ]; then
+            ./setup-free-remote-ssh.sh
+        else
+            echo "❌ setup-free-remote-ssh.sh not found"
+            echo "📥 Available alternatives:"
+            echo "   - WireGuard VPN (self-hosted)"
+            echo "   - ZeroTier (free tier)"
+            echo "   - SSH Reverse Tunnel"
+            echo "   - Dynamic DNS + Port Forwarding"
+            echo "   - Cloudflare Tunnel"
+        fi
+        ;;
+    7)
+        echo "🔗 Using unified connection..."
+        if [ -f "./connect-gym-server.sh" ]; then
+            ./connect-gym-server.sh
+        else
+            echo "❌ Unified connection script not found"
+            echo "💡 Run setup-all-in-one-ssh.sh first"
+        fi
         ;;
     *)
         echo "❌ Invalid choice"

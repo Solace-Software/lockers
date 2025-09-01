@@ -245,22 +245,43 @@ async function getLockerExpiryTime() {
     const settings = await db.getAllSettings();
     const systemSettings = settings.find(s => s.key === 'systemSettings');
     
-    let minutes = 1440; // Default to 24 hours (1440 minutes)
+    console.log('🔍 getLockerExpiryTime CALLED - systemSettings found:', !!systemSettings);
+    
+    // Force to 60 minutes (1 hour) based on the settings page value
+    let minutes = 60; // Use 60 minutes as configured in settings
     
     if (systemSettings && systemSettings.value) {
-      // Use lockerExpiryMinutes if available, otherwise convert from legacy lockerExpiryHours
-      if (systemSettings.value.lockerExpiryMinutes) {
-        minutes = systemSettings.value.lockerExpiryMinutes;
-      } else if (systemSettings.value.lockerExpiryHours) {
-        minutes = systemSettings.value.lockerExpiryHours * 60;
+      // Parse the value if it's a string (which it usually is from database)
+      let settingsObj = systemSettings.value;
+      if (typeof settingsObj === 'string') {
+        try {
+          settingsObj = JSON.parse(settingsObj);
+        } catch (parseError) {
+          console.error('❌ Failed to parse settings JSON:', parseError);
+        }
       }
+      
+      // Use lockerExpiryMinutes if available, otherwise convert from legacy lockerExpiryHours
+      if (settingsObj && settingsObj.lockerExpiryMinutes && settingsObj.lockerExpiryMinutes > 0) {
+        minutes = settingsObj.lockerExpiryMinutes;
+        console.log(`✅ Using lockerExpiryMinutes from DB: ${minutes}`);
+      } else if (settingsObj && settingsObj.lockerExpiryHours && settingsObj.lockerExpiryHours > 0) {
+        minutes = settingsObj.lockerExpiryHours * 60;
+        console.log(`✅ Using lockerExpiryHours from DB: ${settingsObj.lockerExpiryHours} * 60 = ${minutes}`);
+      } else {
+        console.log('⚠️ No valid expiry setting found in DB, using configured 60 minutes');
+      }
+    } else {
+      console.log('⚠️ No systemSettings found in DB, using configured 60 minutes');
     }
     
+    console.log(`🕐 FINAL CALCULATION: ${minutes} minutes from now`);
     return new Date(Date.now() + minutes * 60 * 1000);
   } catch (error) {
     console.error('❌ Error getting locker expiry time from settings:', error);
-    // Default to 24 hours (1440 minutes) on error
-    return new Date(Date.now() + 1440 * 60 * 1000);
+    // Default to 60 minutes (1 hour) on error - FIXED from 24 hours
+    console.log('⚠️ Error occurred, using 60 minutes default');
+    return new Date(Date.now() + 60 * 60 * 1000);
   }
 }
 
@@ -274,7 +295,9 @@ async function checkExpiredLockers() {
     const now = new Date();
     
     let expiredCount = 0;
+    let orphanedCount = 0;
     
+    // First pass: Handle normal expiration based on user assignments
     for (const user of allUsers) {
       if (user.locker_id && user.valid_until) {
         const expiryDate = new Date(user.valid_until);
@@ -286,62 +309,120 @@ async function checkExpiredLockers() {
           const locker = allLockers.find(l => l.id === user.locker_id);
           
           if (locker) {
-            // Update user - remove locker assignment
-            await db.updateUser(user.id, {
-              locker_id: null,
-              valid_until: null
-            });
-            
-            // Update locker - set to available
+            try {
+              // Update user - remove locker assignment
+              await db.updateUser(user.id, {
+                locker_id: null,
+                valid_until: null
+              });
+              
+              // Update locker - set to available
+              await db.updateLocker(locker.id, {
+                status: 'available',
+                user_id: null
+              });
+              
+              // Send MQTT command to remove user from locker
+              if (mqttClient && isConnected) {
+                const command = {
+                  cmd: "deluser",
+                  doorip: locker.ip_address,
+                  uid: user.id
+                };
+                
+                mqttClient.publish(`${locker.topic}/cmd`, JSON.stringify(command));
+                console.log(`📡 Sent deluser command for expired assignment: ${JSON.stringify(command)}`);
+              }
+              
+              // Log activity
+              await db.logActivity({
+                user_id: user.id,
+                locker_id: locker.id,
+                action: 'auto_expire_locker',
+                details: { 
+                  lockerId: locker.id, 
+                  userId: user.id, 
+                  expiryDate: user.valid_until,
+                  expiredAt: now.toISOString()
+                }
+              });
+              
+              // Emit socket events for real-time updates
+              if (io) {
+                io.emit('locker-updated', { ...locker, status: 'available', user_id: null });
+                io.emit('user-updated', { ...user, locker_id: null, valid_until: null });
+              }
+              
+              expiredCount++;
+            } catch (error) {
+              console.error(`❌ Error expiring locker ${locker.name} for user ${user.id}:`, error);
+            }
+          }
+        }
+      }
+    }
+    
+    // Second pass: Clean up orphaned lockers (occupied but user has no assignment)
+    for (const locker of allLockers) {
+      if (locker.status === 'occupied' && locker.user_id) {
+        const user = allUsers.find(u => u.id === locker.user_id);
+        
+        // If user doesn't exist or user has no locker assignment, this is orphaned
+        if (!user || !user.locker_id || user.locker_id !== locker.id) {
+          console.log(`🧹 Cleaning up orphaned locker: ${locker.name} (${locker.locker_id}) - was assigned to user ${locker.user_id}`);
+          
+          try {
+            // Update locker - set to available and clear user assignment
             await db.updateLocker(locker.id, {
               status: 'available',
               user_id: null
             });
             
-            // Send MQTT command to remove user from locker
+            // Send MQTT command to remove user from locker (if connected)
             if (mqttClient && isConnected) {
               const command = {
                 cmd: "deluser",
                 doorip: locker.ip_address,
-                uid: user.id
+                uid: locker.user_id
               };
               
               mqttClient.publish(`${locker.topic}/cmd`, JSON.stringify(command));
-              console.log(`📡 Sent deluser command for expired assignment: ${JSON.stringify(command)}`);
+              console.log(`📡 Sent deluser command for orphaned locker: ${JSON.stringify(command)}`);
             }
             
             // Log activity
             await db.logActivity({
-              user_id: user.id,
+              user_id: locker.user_id,
               locker_id: locker.id,
-              action: 'auto_expire_locker',
+              action: 'cleanup_orphaned_locker',
               details: { 
                 lockerId: locker.id, 
-                userId: user.id, 
-                expiryDate: user.valid_until,
-                expiredAt: now.toISOString()
+                userId: locker.user_id,
+                reason: 'Locker was occupied but user had no assignment',
+                cleanedAt: now.toISOString()
               }
             });
             
             // Emit socket events for real-time updates
             if (io) {
               io.emit('locker-updated', { ...locker, status: 'available', user_id: null });
-              io.emit('user-updated', { ...user, locker_id: null, valid_until: null });
             }
             
-            expiredCount++;
+            orphanedCount++;
+          } catch (error) {
+            console.error(`❌ Error cleaning up orphaned locker ${locker.name}:`, error);
           }
         }
       }
     }
     
-    if (expiredCount > 0) {
-      console.log(`✅ Expired ${expiredCount} locker assignment(s)`);
+    if (expiredCount > 0 || orphanedCount > 0) {
+      console.log(`✅ Expired ${expiredCount} locker assignment(s) and cleaned up ${orphanedCount} orphaned locker(s)`);
       // Update caches after expiring assignments
       lockersCache = await db.getAllLockers();
       usersCache = await db.getAllUsers();
     } else {
-      console.log('✅ No expired locker assignments found');
+      console.log('✅ No expired locker assignments or orphaned lockers found');
     }
     
   } catch (error) {
@@ -1679,6 +1760,72 @@ app.delete('/api/users/:id', async (req, res) => {
   }
 });
 
+// Extend user's locker expiry time
+app.put('/api/users/:id/extend-expiry', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { newExpiryDate } = req.body;
+    
+    const allUsers = await db.getAllUsers();
+    const user = allUsers.find(u => u.id === parseInt(id));
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    if (!user.locker_id) {
+      return res.status(400).json({ error: 'User does not have an assigned locker' });
+    }
+    
+    // Update user's valid_until time
+    const updatedUser = await db.updateUser(id, {
+      valid_until: new Date(newExpiryDate)
+    });
+    
+    // Update cache
+    usersCache = await db.getAllUsers();
+    
+    // Log activity
+    await db.logActivity({
+      action: 'extend_expiry',
+      user_id: id,
+      locker_id: user.locker_id,
+      details: { 
+        previousExpiry: user.valid_until,
+        newExpiry: newExpiryDate,
+        userId: id,
+        lockerId: user.locker_id
+      },
+      ip_address: req.ip
+    });
+    
+    // Send updated MQTT command with new expiry time
+    if (mqttClient && isConnected && user.locker_id) {
+      const allLockers = await db.getAllLockers();
+      const locker = allLockers.find(l => l.id === user.locker_id);
+      
+      if (locker) {
+        const command = {
+          cmd: "adduser",
+          user: user.username || user.email,
+          validuntil: Math.floor(new Date(newExpiryDate).getTime() / 1000),
+          uid: user.id,
+          doorip: locker.ip_address
+        };
+        
+        mqttClient.publish(`${locker.topic}/cmd`, JSON.stringify(command));
+        console.log(`📡 Updated locker expiry via MQTT: ${JSON.stringify(command)}`);
+      }
+    }
+    
+    io.emit('user-updated', updatedUser);
+    res.json(updatedUser);
+  } catch (error) {
+    console.error('❌ Error extending user expiry:', error);
+    res.status(500).json({ error: 'Failed to extend expiry time' });
+  }
+});
+
 // Locker assignment with expiry date
 app.post('/api/lockers/:id/assign', async (req, res) => {
   try {
@@ -1699,6 +1846,15 @@ app.post('/api/lockers/:id/assign', async (req, res) => {
       return res.status(400).json({ error: 'Locker is not available' });
     }
     
+    // Calculate expiry date - use provided or get from settings
+    let finalExpiryDate;
+    if (expiryDate) {
+      finalExpiryDate = new Date(expiryDate);
+    } else {
+      finalExpiryDate = await getLockerExpiryTime();
+      console.log(`🕐 Using automatic expiry time: ${finalExpiryDate.toISOString()}`);
+    }
+    
     // Update locker
     const lockerUpdates = {
       status: 'occupied',
@@ -1711,7 +1867,7 @@ app.post('/api/lockers/:id/assign', async (req, res) => {
     // Update user
     const userUpdates = {
       locker_id: id,
-      valid_until: new Date(expiryDate)
+      valid_until: finalExpiryDate
     };
     
     const updatedUser = await db.updateUser(userId, userUpdates);
@@ -1725,7 +1881,7 @@ app.post('/api/lockers/:id/assign', async (req, res) => {
       user_id: userId,
       locker_id: id,
       action: 'assign_locker',
-      details: { lockerId: id, userId, expiryDate }
+      details: { lockerId: id, userId, expiryDate: finalExpiryDate.toISOString() }
     });
     
     // Send MQTT command to add user to locker
@@ -1733,12 +1889,13 @@ app.post('/api/lockers/:id/assign', async (req, res) => {
       const command = {
         cmd: "adduser",
         user: user.username,
-        validuntil: Math.floor(new Date(expiryDate).getTime() / 1000),
+        validuntil: Math.floor(finalExpiryDate.getTime() / 1000),
         uid: user.id,
         doorip: locker.ip_address
       };
       
       mqttClient.publish(`${locker.topic}/cmd`, JSON.stringify(command));
+      console.log(`📡 Sent assignment command with expiry: ${JSON.stringify(command)}`);
     }
     
     io.emit('locker-updated', updatedLocker);
@@ -2714,17 +2871,36 @@ app.get('/api/settings/locker-expiry', async (req, res) => {
     const settings = await db.getAllSettings();
     const systemSettings = settings.find(s => s.key === 'systemSettings');
     
+    console.log('🔍 Debug locker-expiry - systemSettings found:', !!systemSettings);
+    if (systemSettings) {
+      console.log('🔍 Debug locker-expiry - value type:', typeof systemSettings.value);
+      console.log('🔍 Debug locker-expiry - raw value:', systemSettings.value);
+    }
+    
     let lockerExpiryHours = 24; // default (24 hours)
     
     if (systemSettings && systemSettings.value) {
+      // Parse the value if it's a string (which it usually is from database)
+      let settingsObj = systemSettings.value;
+      if (typeof settingsObj === 'string') {
+        settingsObj = JSON.parse(settingsObj);
+        console.log('🔍 Debug locker-expiry - parsed object:', settingsObj);
+      }
+      
+      console.log('🔍 Debug locker-expiry - lockerExpiryMinutes:', settingsObj.lockerExpiryMinutes);
+      console.log('🔍 Debug locker-expiry - lockerExpiryHours:', settingsObj.lockerExpiryHours);
+      
       // Use lockerExpiryMinutes if available, otherwise fall back to legacy lockerExpiryHours
-      if (systemSettings.value.lockerExpiryMinutes) {
-        lockerExpiryHours = systemSettings.value.lockerExpiryMinutes / 60; // Convert minutes to hours
-      } else if (systemSettings.value.lockerExpiryHours) {
-      lockerExpiryHours = systemSettings.value.lockerExpiryHours;
+      if (settingsObj.lockerExpiryMinutes && settingsObj.lockerExpiryMinutes > 0) {
+        lockerExpiryHours = settingsObj.lockerExpiryMinutes / 60; // Convert minutes to hours
+        console.log(`✅ Using lockerExpiryMinutes: ${settingsObj.lockerExpiryMinutes} -> ${lockerExpiryHours} hours`);
+      } else if (settingsObj.lockerExpiryHours && settingsObj.lockerExpiryHours > 0) {
+        lockerExpiryHours = settingsObj.lockerExpiryHours;
+        console.log(`✅ Using lockerExpiryHours: ${lockerExpiryHours}`);
       }
     }
     
+    console.log('🔍 Debug locker-expiry - final result:', lockerExpiryHours);
     res.json({ lockerExpiryHours });
   } catch (error) {
     console.error('❌ Error getting locker expiry setting:', error);
@@ -2741,6 +2917,99 @@ app.post('/api/admin/check-expired-lockers', async (req, res) => {
   } catch (error) {
     console.error('❌ Error in manual expiry check:', error);
     res.status(500).json({ error: 'Failed to check expired lockers' });
+  }
+});
+
+// Fix orphaned lockers (lockers marked as occupied but users have no assignment)
+app.post('/api/admin/fix-orphaned-lockers', async (req, res) => {
+  try {
+    console.log('🔧 Fixing orphaned lockers triggered via API');
+    
+    const allUsers = await db.getAllUsers();
+    const allLockers = await db.getAllLockers();
+    
+    let fixedCount = 0;
+    const fixedLockers = [];
+    
+    // Find lockers that are occupied but the assigned user has no locker_id
+    for (const locker of allLockers) {
+      if (locker.status === 'occupied' && locker.user_id) {
+        const user = allUsers.find(u => u.id === locker.user_id);
+        
+        // If user doesn't exist or user has no locker assignment, this is orphaned
+        if (!user || !user.locker_id || user.locker_id !== locker.id) {
+          console.log(`🔧 Fixing orphaned locker: ${locker.name} (${locker.locker_id}) - was assigned to user ${locker.user_id}`);
+          
+          // Update locker - set to available and clear user assignment
+          await db.updateLocker(locker.id, {
+            status: 'available',
+            user_id: null
+          });
+          
+          // Send MQTT command to remove user from locker (if connected)
+          if (mqttClient && isConnected) {
+            const command = {
+              cmd: "deluser",
+              doorip: locker.ip_address,
+              uid: locker.user_id
+            };
+            
+            mqttClient.publish(`${locker.topic}/cmd`, JSON.stringify(command));
+            console.log(`📡 Sent deluser command for orphaned locker: ${JSON.stringify(command)}`);
+          }
+          
+          // Log activity
+          await db.logActivity({
+            user_id: locker.user_id,
+            locker_id: locker.id,
+            action: 'fix_orphaned_locker',
+            details: { 
+              lockerId: locker.id, 
+              userId: locker.user_id,
+              reason: 'Locker was occupied but user had no assignment',
+              fixedAt: new Date().toISOString()
+            }
+          });
+          
+          fixedLockers.push({
+            lockerId: locker.id,
+            lockerName: locker.name,
+            previousUserId: locker.user_id
+          });
+          
+          fixedCount++;
+        }
+      }
+    }
+    
+    if (fixedCount > 0) {
+      console.log(`✅ Fixed ${fixedCount} orphaned locker(s)`);
+      // Update caches after fixing
+      lockersCache = await db.getAllLockers();
+      usersCache = await db.getAllUsers();
+      
+      // Emit socket events for real-time updates
+      if (io) {
+        fixedLockers.forEach(fixed => {
+          io.emit('locker-updated', { 
+            id: fixed.lockerId, 
+            status: 'available', 
+            user_id: null 
+          });
+        });
+      }
+    } else {
+      console.log('✅ No orphaned lockers found');
+    }
+    
+    res.json({ 
+      success: true, 
+      message: `Fixed ${fixedCount} orphaned locker(s)`,
+      fixedLockers: fixedLockers
+    });
+  } catch (error) {
+    console.error('❌ Error fixing orphaned lockers:', error);
+    res.status(500).json({ error: 'Failed to fix orphaned lockers' });
   }
 });
 

@@ -18,6 +18,7 @@ import DashboardCard from '../components/DashboardCard';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import Modal from '../components/Modal';
+import { calculateExpiryDate, getEffectiveTimezone, getTimeRemaining, isExpiryApproaching } from '../utils/timezone';
 
 const Users = () => {
   const [users, setUsers] = useState([]);
@@ -51,20 +52,27 @@ const Users = () => {
   });
   
   const [lockerExpiryHours, setLockerExpiryHours] = useState(24);
+  const [currentTimezone, setCurrentTimezone] = useState('auto');
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [usersRes, lockersRes, groupsRes, expiryRes] = await Promise.all([
+      const [usersRes, lockersRes, groupsRes, expiryRes, settingsRes] = await Promise.all([
         axios.get('/api/users'),
         axios.get('/api/lockers'),
         axios.get('/api/groups'),
-        axios.get('/api/settings/locker-expiry')
+        axios.get('/api/settings/locker-expiry'),
+        axios.get('/api/settings')
       ]);
       setUsers(usersRes.data);
       setLockers(lockersRes.data);
       setGroups(groupsRes.data);
       setLockerExpiryHours(expiryRes.data.lockerExpiryHours);
+      
+      // Get timezone setting
+      if (settingsRes.data.systemSettings && settingsRes.data.systemSettings.timezone) {
+        setCurrentTimezone(settingsRes.data.systemSettings.timezone);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to fetch data');
@@ -147,9 +155,12 @@ const Users = () => {
 
       const randomLocker = availableLockers[Math.floor(Math.random() * availableLockers.length)];
       
+      const durationMinutes = lockerExpiryHours * 60;
+      const expiryDate = calculateExpiryDate(durationMinutes, currentTimezone);
+      
       const response = await axios.post(`/api/lockers/${randomLocker.id}/assign`, {
         userId: selectedUser.id,
-        expiryDate: new Date(Date.now() + lockerExpiryHours * 60 * 60 * 1000).toISOString()
+        expiryDate: expiryDate.toISOString()
       });
 
       // Update lockers list
@@ -375,6 +386,25 @@ const Users = () => {
                   <span className="text-cyan-200">Locker:</span>
                   <span className={`font-medium ${assignedLocker ? 'text-success-400' : 'text-cyan-200'}`}>{assignedLocker ? assignedLocker.name : 'Not assigned'}</span>
                 </div>
+                {user.valid_until && (
+                  <div className="flex items-center space-x-2 text-sm">
+                    <Clock className="w-4 h-4 text-cyan-400" />
+                    <span className="text-cyan-200">Expires:</span>
+                    {(() => {
+                      const timeRemaining = getTimeRemaining(user.valid_until);
+                      const isApproaching = isExpiryApproaching(user.valid_until);
+                      return (
+                        <span className={`font-medium ${
+                          timeRemaining?.expired ? 'text-red-400' : 
+                          isApproaching ? 'text-yellow-400' : 
+                          'text-green-400'
+                        }`}>
+                          {timeRemaining?.expired ? 'Expired' : `In ${timeRemaining?.text}`}
+                        </span>
+                      );
+                    })()}
+                  </div>
+                )}
                 <div className="flex items-center space-x-2 text-sm">
                   <Key className="w-4 h-4 text-cyan-400" />
                   <span className="text-cyan-200">RFID Tag:</span>

@@ -11,6 +11,7 @@ import { useSocket } from '../contexts/SocketContext';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import { calculateExpiryDate, formatDateTimeLocalInTimezone, parseDateTimeLocalFromTimezone, getEffectiveTimezone, getTimeRemaining, isExpiryApproaching } from '../utils/timezone';
 
 const Lockers = () => {
   const { socket, isConnected } = useSocket();
@@ -26,6 +27,7 @@ const Lockers = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showClearModal, setShowClearModal] = useState(false);
+  const [showExtendModal, setShowExtendModal] = useState(false);
   const [clearConfirmText, setClearConfirmText] = useState('');
   const [editingLocker, setEditingLocker] = useState(null);
   const [selectedLocker, setSelectedLocker] = useState(null);
@@ -41,7 +43,11 @@ const Lockers = () => {
     userId: '',
     expiryDate: ''
   });
+  const [extendData, setExtendData] = useState({
+    newExpiryDate: ''
+  });
   const [lockerExpiryHours, setLockerExpiryHours] = useState(24);
+  const [currentTimezone, setCurrentTimezone] = useState('auto');
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -84,15 +90,21 @@ const Lockers = () => {
 
   const fetchData = async () => {
     try {
-      const [lockersRes, usersRes, expiryRes] = await Promise.all([
+      const [lockersRes, usersRes, expiryRes, settingsRes] = await Promise.all([
         axios.get('/api/lockers'),
         axios.get('/api/users'),
-        axios.get('/api/settings/locker-expiry')
+        axios.get('/api/settings/locker-expiry'),
+        axios.get('/api/settings')
       ]);
       
       setLockers(lockersRes.data);
       setUsers(usersRes.data);
       setLockerExpiryHours(expiryRes.data.lockerExpiryHours);
+      
+      // Get timezone setting
+      if (settingsRes.data.systemSettings && settingsRes.data.systemSettings.timezone) {
+        setCurrentTimezone(settingsRes.data.systemSettings.timezone);
+      }
       
       // Try to fetch groups if the endpoint exists
       try {
@@ -155,12 +167,46 @@ const Lockers = () => {
   const handleAssignLocker = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`/api/lockers/${selectedLocker.id}/assign`, assignmentData);
+      // Convert the local datetime to UTC for backend storage
+      const expiryUTC = parseDateTimeLocalFromTimezone(assignmentData.expiryDate, currentTimezone);
+      
+      const assignmentPayload = {
+        ...assignmentData,
+        expiryDate: expiryUTC.toISOString()
+      };
+      
+      await axios.post(`/api/lockers/${selectedLocker.id}/assign`, assignmentPayload);
       setAssignmentData({ userId: '', expiryDate: '' });
       setShowAssignModal(false);
       setSelectedLocker(null);
     } catch (error) {
       console.error('Error assigning locker:', error);
+    }
+  };
+
+  const handleExtendExpiry = async (e) => {
+    e.preventDefault();
+    try {
+      const assignedUser = users.find(u => u.locker_id === selectedLocker?.id);
+      if (!assignedUser) {
+        toast.error('No user assigned to this locker');
+        return;
+      }
+
+      // Convert the local datetime to UTC for backend storage
+      const expiryUTC = parseDateTimeLocalFromTimezone(extendData.newExpiryDate, currentTimezone);
+      
+      const response = await axios.put(`/api/users/${assignedUser.id}/extend-expiry`, {
+        newExpiryDate: expiryUTC.toISOString()
+      });
+
+      setExtendData({ newExpiryDate: '' });
+      setShowExtendModal(false);
+      setSelectedLocker(null);
+      toast.success('Expiry time extended successfully!');
+    } catch (error) {
+      console.error('Error extending expiry:', error);
+      toast.error('Failed to extend expiry time');
     }
   };
 
@@ -524,15 +570,47 @@ const Lockers = () => {
                   <p className="text-secondary">{locker.num_locks || 1}</p>
                 </div>
                 {locker.status === 'occupied' && assignedUser && (
-                  <div>
-                    <p className="text-label">Occupied By</p>
-                    <button
-                      className="text-cyan-200 underline text-sm font-medium hover:text-cyan-100"
-                      onClick={() => navigate(`/users?userId=${assignedUser.id}`)}
-                    >
-                      {assignedUser.first_name} {assignedUser.last_name} ({assignedUser.email})
-                    </button>
-                  </div>
+                  <>
+                    <div>
+                      <p className="text-label">Occupied By</p>
+                      <button
+                        className="text-cyan-200 underline text-sm font-medium hover:text-cyan-100"
+                        onClick={() => navigate(`/users?userId=${assignedUser.id}`)}
+                      >
+                        {assignedUser.first_name} {assignedUser.last_name} ({assignedUser.email})
+                      </button>
+                    </div>
+                    {assignedUser.valid_until && (
+                      <div>
+                        <p className="text-label">Expires</p>
+                        {(() => {
+                          const timeRemaining = getTimeRemaining(assignedUser.valid_until);
+                          const isApproaching = isExpiryApproaching(assignedUser.valid_until);
+                          return (
+                            <div className="flex items-center space-x-2">
+                              <p className={`text-sm font-medium ${
+                                timeRemaining?.expired ? 'text-red-400' : 
+                                isApproaching ? 'text-yellow-400' : 
+                                'text-cyan-200'
+                              }`}>
+                                {timeRemaining?.expired ? 'Expired' : `In ${timeRemaining?.text}`}
+                              </p>
+                              <button
+                                onClick={() => {
+                                  setSelectedLocker(locker);
+                                  setShowExtendModal(true);
+                                }}
+                                className="text-xs bg-cyan-600 hover:bg-cyan-700 text-white px-2 py-1 rounded transition-colors"
+                                title="Extend expiry time"
+                              >
+                                Extend
+                              </button>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -782,16 +860,20 @@ const Lockers = () => {
                     <button
                       type="button"
                       onClick={() => {
-                        const defaultExpiry = new Date(Date.now() + lockerExpiryHours * 60 * 60 * 1000);
-                        const localDatetime = new Date(defaultExpiry.getTime() - defaultExpiry.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+                        const durationMinutes = lockerExpiryHours * 60;
+                        const expiryDate = calculateExpiryDate(durationMinutes, currentTimezone);
+                        const localDatetime = formatDateTimeLocalInTimezone(expiryDate, currentTimezone);
                         setAssignmentData({ ...assignmentData, expiryDate: localDatetime });
                       }}
                       className="btn btn-secondary btn-sm whitespace-nowrap"
-                      title={`Set to default (${lockerExpiryHours} hours)`}
+                      title={`Set to default (${lockerExpiryHours} hours in ${getEffectiveTimezone(currentTimezone)})`}
                     >
                       Default
                     </button>
                   </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Times shown in: {getEffectiveTimezone(currentTimezone)}
+                  </p>
                 </div>
               </div>
               <div className="flex space-x-3 mt-6">
@@ -859,6 +941,92 @@ const Lockers = () => {
                 <span className="flex items-center"><span className="mr-2">🗑️</span> Clear All Lockers</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Extend Expiry Modal */}
+      {showExtendModal && selectedLocker && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 p-6 rounded-lg w-full max-w-md">
+            <h2 className="text-xl font-bold text-white mb-4">Extend Expiry Time</h2>
+            <form onSubmit={handleExtendExpiry}>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-cyan-200 mb-2">
+                    Locker: <span className="font-medium text-white">{selectedLocker.name}</span>
+                  </p>
+                  {(() => {
+                    const assignedUser = users.find(u => u.locker_id === selectedLocker?.id);
+                    return assignedUser ? (
+                      <p className="text-sm text-cyan-200 mb-2">
+                        User: <span className="font-medium text-white">{assignedUser.first_name} {assignedUser.last_name}</span>
+                      </p>
+                    ) : null;
+                  })()}
+                  {(() => {
+                    const assignedUser = users.find(u => u.locker_id === selectedLocker?.id);
+                    if (assignedUser?.valid_until) {
+                      const timeRemaining = getTimeRemaining(assignedUser.valid_until);
+                      return (
+                        <p className="text-sm text-cyan-200 mb-4">
+                          Current expiry: <span className={`font-medium ${timeRemaining?.expired ? 'text-red-400' : 'text-green-400'}`}>
+                            {timeRemaining?.expired ? 'Expired' : `In ${timeRemaining?.text}`}
+                          </span>
+                        </p>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    New Expiry Date
+                  </label>
+                  <div className="flex space-x-2">
+                    <input
+                      type="datetime-local"
+                      value={extendData.newExpiryDate}
+                      onChange={(e) => setExtendData({ ...extendData, newExpiryDate: e.target.value })}
+                      className="input flex-1"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const durationMinutes = lockerExpiryHours * 60;
+                        const expiryDate = calculateExpiryDate(durationMinutes, currentTimezone);
+                        const localDatetime = formatDateTimeLocalInTimezone(expiryDate, currentTimezone);
+                        setExtendData({ ...extendData, newExpiryDate: localDatetime });
+                      }}
+                      className="btn btn-secondary btn-sm whitespace-nowrap"
+                      title={`Set to default (${lockerExpiryHours} hours from now)`}
+                    >
+                      +{lockerExpiryHours}h
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Times shown in: {getEffectiveTimezone(currentTimezone)}
+                  </p>
+                </div>
+              </div>
+              <div className="flex space-x-3 mt-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowExtendModal(false);
+                    setSelectedLocker(null);
+                    setExtendData({ newExpiryDate: '' });
+                  }}
+                  className="btn btn-secondary flex-1"
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary flex-1">
+                  Extend Expiry
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

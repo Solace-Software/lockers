@@ -17,6 +17,7 @@ import DashboardCard from '../components/DashboardCard';
 import Input from '../components/Input';
 import Button from '../components/Button';
 import Modal from '../components/Modal';
+import { getBrowserTimezone, getTimezoneOptions, getEffectiveTimezone, getTimezoneInfo } from '../utils/timezone';
 
 const Settings = () => {
   const { socket, isConnected } = useSocket();
@@ -39,7 +40,8 @@ const Settings = () => {
   const [systemSettings, setSystemSettings] = useState({
     autoRefresh: 30,
     dataRetention: 90,
-    lockerExpiryMinutes: 1440  // Default 24 hours in minutes
+    lockerExpiryMinutes: 1440,  // Default 24 hours in minutes
+    timezone: 'auto'  // Auto-detect browser timezone by default
   });
 
   // MQTT Listener state
@@ -56,6 +58,8 @@ const Settings = () => {
   const [testMessageLoading, setTestMessageLoading] = useState(false);
   const [testResult, setTestResult] = useState(null);
   const [showTestModal, setShowTestModal] = useState(false);
+
+
 
   useEffect(() => {
     // Load settings from API
@@ -74,7 +78,9 @@ const Settings = () => {
             ...settings.systemSettings,
             // Convert legacy lockerExpiryHours to lockerExpiryMinutes if needed
             lockerExpiryMinutes: settings.systemSettings.lockerExpiryMinutes || 
-                                (settings.systemSettings.lockerExpiryHours ? settings.systemSettings.lockerExpiryHours * 60 : 1440)
+                                (settings.systemSettings.lockerExpiryHours ? settings.systemSettings.lockerExpiryHours * 60 : 1440),
+            // Default to auto-detect if no timezone is set
+            timezone: settings.systemSettings.timezone || 'auto'
           }));
         }
         
@@ -95,7 +101,9 @@ const Settings = () => {
             ...parsedSystem,
             // Convert legacy lockerExpiryHours to lockerExpiryMinutes if needed
             lockerExpiryMinutes: parsedSystem.lockerExpiryMinutes || 
-                                (parsedSystem.lockerExpiryHours ? parsedSystem.lockerExpiryHours * 60 : 1440)
+                                (parsedSystem.lockerExpiryHours ? parsedSystem.lockerExpiryHours * 60 : 1440),
+            // Default to auto-detect if no timezone is set
+            timezone: parsedSystem.timezone || 'auto'
           }));
         }
         if (savedMqttListener) setMqttListener(prev => ({ ...prev, ...JSON.parse(savedMqttListener), messages: [], isListening: false }));
@@ -674,6 +682,26 @@ const Settings = () => {
               />
               <p className="text-xs text-cyan-200 mt-1">
                 Duration in minutes (e.g., 60 = 1 hour, 1440 = 24 hours)
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-cyan-200 mb-1">
+                Timezone
+              </label>
+              <select
+                value={systemSettings.timezone}
+                onChange={(e) => setSystemSettings({ ...systemSettings, timezone: e.target.value })}
+                className="input"
+              >
+                {getTimezoneOptions().map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-cyan-200 mt-1">
+                Active timezone: {getEffectiveTimezone(systemSettings.timezone)} | Current time: {getTimezoneInfo(systemSettings.timezone).currentTime}
               </p>
             </div>
 

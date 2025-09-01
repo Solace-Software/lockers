@@ -1,0 +1,27 @@
+# INZAN Gym Lockers - Current SSH Connection
+
+## ✅ ACTIVE ngrok Tunnel
+- **Host**: 4.tcp.eu.ngrok.io
+- **Port**: 13583
+- **Status**: ONLINE
+
+## SSH Connection Command:
+ssh root@4.tcp.eu.ngrok.io -p 13583
+
+## Alternative Commands:
+ssh rubik@4.tcp.eu.ngrok.io -p 13583
+
+## Quick Test:
+ssh root@4.tcp.eu.ngrok.io -p 13583 "hostname && date"
+
+## Notes:
+- This tunnel is active as of August 31, 2025
+- If tunnel goes down, restart with: ngrok tcp 22 (on server)
+- ngrok web interface: http://127.0.0.1:4040 (on server)
+- Server IP: 100.81.165.23
+
+## Backup Access:
+- Via Tailscale: ssh root@100.81.165.23
+- Via rubik user: ssh rubik@100.81.165.23
+
+Last Updated: August 31, 2025 - 15:30 UTC

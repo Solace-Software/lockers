@@ -1,0 +1,20 @@
+# INZAN Gym Lockers SSH Connection
+# Quick reference for SSH access
+
+## 🔗 PRIMARY SSH COMMAND:
+ssh root@4.tcp.eu.ngrok.io -p 13583
+
+## Alternative Commands:
+ssh rubik@4.tcp.eu.ngrok.io -p 13583
+
+## Server Details:
+- ngrok Host: 4.tcp.eu.ngrok.io
+- ngrok Port: 13583
+- Server IP: 100.81.165.23
+- Users: root, rubik
+
+## Quick Copy-Paste:
+ssh root@4.tcp.eu.ngrok.io -p 13583
+
+## Status: ACTIVE (August 31, 2025)
+## Last Updated: August 31, 2025 - 15:35 UTC
